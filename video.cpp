@@ -59,7 +59,7 @@ void video::camera_read_write()
     //flag == 1 -- red
     //flag == 2 -- blue
 
-        if(flag==2) dst = f_armour.find_blue(frame,dst.clone());
+
         if(flag==3) dst = f_armour.find_blue1(frame,dst.clone());
         if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
         if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
@@ -118,7 +118,6 @@ void video::file_read()
     //flag == 1 -- red
     //flag == 2 -- blue
 
-        if(flag==2) dst = f_armour.find_blue(frame,dst.clone());
         if(flag==3) dst = f_armour.find_blue1(frame,dst.clone());
         if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
         if(flag==5) dst = f_armour.find_red2(frame,dst.clone());

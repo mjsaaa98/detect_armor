@@ -12,7 +12,7 @@ int main()
     int fd1 = open("/dev/video0",O_RDWR);
 
     //save video's file path(读取视频文件时使用)
-    string c2 ="/home/mjs/Videos/blue.avi";
+    string c2 ="/home/mjs/Videos/blue6.avi";
 
     int saturaion,exposure,contrast,gain,brightness,white;
     fs["saturaion"] >> saturaion;
@@ -44,7 +44,6 @@ int main()
 
     fs["select"]>>select;
     fs["flag"]>>flag;
-    cout<<flag<<endl;
     if (select == 1)
     {
     video vd(0,c1,flag);

@@ -20,8 +20,10 @@ public:
     Mat find_blue2(Mat,Mat);
     Mat find_red2(Mat,Mat);
     Mat find_red3(Mat,Mat);
+    Mat roi(Mat,Point,double,int,int);
 private:
     FileStorage fs;
+        double x1,x2,y1,y2;
     double a1,a2,area_min,min_rate,max_rate,height_d_wucha,y_dist_wucha;
 };
 
