@@ -1,6 +1,6 @@
 #include "find_armour.h"
 #include "get_colors.h"
-
+#include "send_location.h"
 find_armour::find_armour(FileStorage f)
 {
     fs = f;
@@ -1053,6 +1053,8 @@ Mat find_armour::find_blue1(Mat img,Mat dst)
             circle(img,last_center,last_d,Scalar(0,255,0));
         }
     }
+    send_location send_l;
+    send_l.send_coordinate(last_center);
     imshow("ROI",dstROI);
     return dst;
 }
