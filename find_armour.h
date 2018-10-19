@@ -21,6 +21,7 @@ public:
     Mat find_red2(Mat,Mat);
     Mat find_red3(Mat,Mat);
     Mat roi(Mat,Point,double,int,int);
+    Mat find_blue3(Mat,Mat);
 private:
     FileStorage fs;
         double x1,x2,y1,y2;

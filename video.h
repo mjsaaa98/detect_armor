@@ -5,6 +5,10 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <iostream>
+//用于计时
+#include<time.h>
+#include<QDebug>
+#include<QTime>
 
 using namespace std;
 using namespace cv;

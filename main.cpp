@@ -1,7 +1,6 @@
 #include "video.h"
-//#include "get_colors.h"
-//#include "find_pic_armour.h"
 #include "v4l2_set.h"
+
 
 FileStorage fs("canshu.yaml",FileStorage::READ);
 
@@ -15,7 +14,7 @@ int main()
     string c2 ="/home/mjs/Videos/blue6.avi";
 
     int saturaion,exposure,contrast,gain,brightness,white;
-    fs["saturaion"] >> saturaion;
+    fs["saturation"] >> saturaion;
     fs["exposure"] >> exposure;
     fs["contrast"] >> contrast;
     fs["gain"] >> gain;
