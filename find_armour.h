@@ -24,7 +24,8 @@ public:
     Mat find_blue3(Mat,Mat);
 private:
     FileStorage fs;
-        double x1,x2,y1,y2;
+    double x1,x2,y1,y2;
+    double y_dist_wucha_ROI,height_d_wucha_ROI;
     double a1,a2,area_min,min_rate,max_rate,height_d_wucha,y_dist_wucha;
 };
 

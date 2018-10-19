@@ -4,6 +4,8 @@
 find_armour::find_armour(FileStorage f)
 {
     fs = f;
+    fs["y_dist_wucha_ROI"] >> y_dist_wucha_ROI;
+    fs["height_d_wucha_ROI"] >> height_d_wucha_ROI;
     fs["area_min"] >> area_min;
     fs["angle1"] >> a1;
     fs["angle2"] >> a2;
@@ -1230,9 +1232,10 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
             //find four top_points
             boxPoints(rRect[i],vertices[i]);
             //长宽分明时。
-            if(((rRect[i].size.height>rRect[i].size.width&&rRect[i].angle>-20)
+            if(areas[i]>50&&((rRect[i].size.height>rRect[i].size.width&&rRect[i].angle>-20)
                      ||(rRect[i].size.height<rRect[i].size.width&&rRect[i].angle<-60)))
             {
+
                 //if Yes,draw rect and save pram.
                 for(int k = 0;k<4;k++)
                 {
@@ -1241,6 +1244,7 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
                     Point p2 = Point(Point(vertices[i].row(n)).x+x1,Point(vertices[i].row(n)).y+y1);
                     line(img,p1,p2,Scalar(0,255,0),2);
                 }
+
 
                 double h = rRect[i].size.height;
 
@@ -1252,6 +1256,7 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
 
                 con_prams.push_back(con_pram);
             }
+
         }
 
         for(int i=0;i<con_prams.size();i++)
@@ -1264,20 +1269,12 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
                 double y1 = con_prams[i][2];
                 double y2 = con_prams[j][2];
 
-    //            double angle1 = con_prams[i][3];
-    //            double angle2 = con_prams[j][3];
-
-                double area_rate = area[i]/area[j];
                 double height_d = abs(height2-height1);
-    //            double angle_d = abs(angle2-angle1);
-    //            double angle_a = abs(angle1+angle2);
+
                 double y_dist = abs(y2-y1);
 
-                double height_d_wucha = 10;
-
                 // Y and Y 's distance must less wucha.and area's rate must bettwen min and max
-                if(y_dist<y_dist_wucha&&height_d<height_d_wucha
-                        &&area_rate>min_rate&&area_rate<max_rate)
+                if(y_dist<y_dist_wucha_ROI&&height_d<height_d_wucha_ROI)
                 {
                     //get circle diameter
                     double d=sqrt(pow(con_prams[i][1]-con_prams[j][1],2)
