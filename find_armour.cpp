@@ -823,8 +823,8 @@ Mat find_armour::find_blue1(Mat img,Mat dst)
 Mat find_armour::roi(Mat img,Point center,double d,int cols,int rows)
 {
     Mat roi;
-    x1 = center.x-d*0.7;
-    x2 = center.x+d*0.7;
+    x1 = center.x-d*0.8;
+    x2 = center.x+d*0.8;
     y1 = center.y-d*1.0;
     y2 = center.y+d*1.0;
     if(x1<=0) x1 = 1;
@@ -1173,7 +1173,7 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
         if(armour_center.size()==0)
         {
             flags = 0;
-            dstROI = Mat::zeros(dst.size(),dst.type());
+            dstROI = roi(dst,Point(img.cols/2,img.rows/2),100,img.cols,img.rows);
         }
         else if(armour_center.size()==1)
         {
@@ -1208,6 +1208,9 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
 //
     else
     {
+        //截取本阵图片，只对截图操作
+        dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
+
         findContours(dstROI,contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
         int num = contours.size();   //contour's amount
 
@@ -1287,18 +1290,15 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
                 }
             }
         }
-        cout<<armour_center.size()<<endl;
         //识别到的装甲板个数
         if(armour_center.size()==0)
         {
             flags = 0;
-            dstROI = dstROI;
         }
         else if(armour_center.size()==1)
         {
             last_center = armour_center[0];
             last_d = diameters[0];
-            dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
         }
@@ -1317,7 +1317,6 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
             }
             last_center = armour_center[n];
             last_d = diameters[n];
-            dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
         }
