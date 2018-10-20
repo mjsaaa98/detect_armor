@@ -22,6 +22,8 @@ public:
     Mat find_red3(Mat,Mat);
     Mat roi(Mat,Point,double,int,int);
     Mat find_blue3(Mat,Mat);
+    void search_armour(Mat img,Mat dst,vector<Point2f>&armour_center,vector<double>&diameters,int);
+    Mat find_blue4(Mat,Mat);
 private:
     FileStorage fs;
     double x1,x2,y1,y2;

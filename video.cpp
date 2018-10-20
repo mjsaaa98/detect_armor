@@ -59,8 +59,9 @@ void video::camera_read_write()
     //flag == 1 -- red
     //flag == 2 -- blue
 
+        if(flag==1) dst = f_armour.find_blue1(frame,dst.clone());
         if(flag==2) dst = f_armour.find_blue3(frame,dst.clone());
-        if(flag==3) dst = f_armour.find_blue1(frame,dst.clone());
+        if(flag==3) dst = f_armour.find_blue4(frame,dst.clone());
         if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
         if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
         if(flag==6) dst = f_armour.find_red3(frame,dst.clone());
@@ -92,8 +93,8 @@ void video::file_read()
 
     while (1)
     {
-//        QTime time;
-//        time.start();
+        QTime time;
+        time.start();
         Mat frame;
         double t1=0,t2=0;
         t1 = getTickCount();
@@ -103,22 +104,18 @@ void video::file_read()
         imshow("src",frame);
 
         Mat dst = Mat::zeros(frame.size(), CV_8UC1);
-
+        if(flag==1) dst = f_armour.find_blue1(frame,dst.clone());
         if(flag==2) dst = f_armour.find_blue3(frame,dst.clone());
-        if(flag==3) dst = f_armour.find_blue1(frame,dst.clone());
+        if(flag==3) dst = f_armour.find_blue4(frame,dst.clone());
         if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
         if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
         if(flag==6) dst = f_armour.find_red3(frame,dst.clone());
-
-
-
-
 
         imshow("dst",dst);
         t2 = getTickCount();
 //        double fps = (t2-t1)/getTickFrequency()*1000;
 //        cout<<"time:"<<fps<<"ms"<<endl;
-//        qDebug()<<"time:"<<time.elapsed()<<"ms";//输出计时
+        qDebug()<<"time:"<<time.elapsed()<<"ms";//输出计时
 
         int i = waitKey(100);
         if( i=='q') break;
