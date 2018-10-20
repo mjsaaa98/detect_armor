@@ -11,7 +11,7 @@ int main()
     int fd1 = open("/dev/video0",O_RDWR);
 
     //save video's file path(读取视频文件时使用)
-    string c2 ="/home/mjs/Videos/blue_30.avi";
+    string c2 ="/home/mjs/Videos/blue.avi";
 
     int saturaion,exposure,contrast,gain,brightness,white;
     fs["saturation"] >> saturaion;

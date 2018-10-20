@@ -1399,12 +1399,17 @@ Mat find_armour::find_blue4(Mat img,Mat dst)
         search_armour(img,dstROI,armour_center,diameters,flags);
 
         //识别到的装甲板个数
-        if(armour_center.size()==0)
+        while(armour_center.size()==0)
         {
+            cout<<"a"<<endl;
             last_d = last_d*1.3;
             dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
-
             search_armour(img,dstROI,armour_center,diameters,flags);
+            if(x1==1||x2==img.cols-1||y1==1||y2==img.rows-1) break;
+        }
+        if(armour_center.size()==0)
+        {
+            flags = 0;
         }
         else if(armour_center.size()==1)
         {
@@ -1415,15 +1420,13 @@ Mat find_armour::find_blue4(Mat img,Mat dst)
         }
         else
         {
-
             int n = 0;
             double d1 = diameters[0];
             for (int i = 1;i<armour_center.size();i++)
             {
                 double d2 = diameters[i];
-                if(abs(d1-last_d)>abs(d2-last_d))
+                if(d1>d2)
                 {
-                    d1 = d2;
                     n = i;
                 }
             }

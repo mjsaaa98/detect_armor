@@ -101,7 +101,7 @@ void video::file_read()
         camera0 >> frame;
         if (frame.empty()) break;
 
-        imshow("src",frame);
+//        imshow("src",frame);
 
         Mat dst = Mat::zeros(frame.size(), CV_8UC1);
         if(flag==1) dst = f_armour.find_blue1(frame,dst.clone());
@@ -117,7 +117,7 @@ void video::file_read()
 //        cout<<"time:"<<fps<<"ms"<<endl;
         qDebug()<<"time:"<<time.elapsed()<<"ms";//输出计时
 
-        int i = waitKey(100);
+        int i = waitKey(10);
         if( i=='q') break;
     }
 }
