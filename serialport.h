@@ -1,43 +1,84 @@
-#ifndef SERIALPORT_H
-#define SERIALPORT_H
-#include <stdio.h>  /*Standard Input&Output defintion*/
+
+/**
+ *@class  SerialPort
+ *@brief  set serialport,recieve and send
+ *@param  int fd
+ */
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <sys/ioctl.h>
 #include <iostream>
-#include <time.h>
-#include <cmath>
-#include<stdlib.h>   /*Standard function libray defintion*/
-#include<unistd.h>
-#include<sys/types.h>
-#include<sys/stat.h>
-#include<fcntl.h>
-#include<termios.h>
-#include<errno.h>
-#include<string.h>
-
-#define FALSE  -1
-#define TRUE   0
-
+#include "CRC_Check.h"
+#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 using namespace std;
+using namespace cv;
 
-//SerialPort Class for DJI Maniflod
-class SerialPort{
-private:
-    int fd;//串口号
-    char *PortName;//串口名
-    int speed, flow_ctrl, databits, stopbits, parity;
-    int data_len;
-    int UART0_Init();
-    int UART0_Set();
-public:
+#define TRUE 1
+#define FALSE 0
+
+//模式
+#define CmdID0 0x00; //关闭视觉
+#define CmdID1 0x01; //识别红色
+#define CmdID2 0x02; //识别蓝色
+
+
+#define CmdID3 0x03; //小幅
+#define CmdID4 0x04; //大幅
+
+#define BAUDRATE 115200
+#define UART_DEVICE "/dev/ttyUSB0"
+
+
+//C_lflag
+#define ECHOFLAGS (ECHO | ECHOE | ECHOK | ECHONL)
+
+
+typedef union{
+    float f;
+    unsigned char c[4];
+}float2uchar;
+
+typedef union{
+    int16_t d;
+    unsigned char c[2];
+}int16uchar;
+
+
+typedef struct
+{
+    float2uchar yaw_angle;
+    float2uchar pitch_angle;
+    float2uchar dis;
+}VisionData;
+static double serialtimer, timerlast;
+
+class SerialPort
+{
+  private:
+    int fd; //串口号
+    int speed, databits, stopbits, parity;
+    unsigned char rdata[255]; //raw_data
+    unsigned char Tdata[30];  //transfrom data
+  public:
     SerialPort();
-    SerialPort(char *pn);
-    ~SerialPort();
-    void Open();
-    int Send(char *send_buf);
-    int Recv(char *rcv_buf);
+    SerialPort(char *);
+    void initSerialPort();
+    void set_Brate();
+    int set_Bit(int, int, int);
+    int set_disp_mode(int);
+    void get_Mode(int &mode);
+    void TransformTarPos(const VisionData &data);
+    void send(int p, int yaw, int dis, char flag, int);
+    void TransformData(const VisionData &data);
     void Close();
 };
 
-
-
-
-#endif // SERIALPORT_H

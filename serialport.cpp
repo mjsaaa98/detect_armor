@@ -1,251 +1,313 @@
-#include <stdio.h>  /*Standard Input&Output defintion*/
-#include <iostream>
-#include <time.h>
-#include <cmath>
-#include<stdlib.h>   /*Standard function libray defintion*/
-#include<unistd.h>
-#include<sys/types.h>
-#include<sys/stat.h>
-#include<fcntl.h>
-#include<termios.h>
-#include<errno.h>
-#include<string.h>
-#include"serialport.h"
-#define FALSE  -1
-#define TRUE   0
 
-using namespace std;
+#include "serialport.h"
 
-SerialPort::SerialPort(){
-    PortName = "/dev/ttyUSB0";
-    speed = 115200;
-    flow_ctrl = 0;
+/**
+ *@brief   初始化数据
+ *@param  fd       类型  int  打开的串口文件句柄
+ *@param  speed    类型  int  波特率
+
+ *@param  databits 类型  int  数据位   取值 为 7 或者8
+
+ *@param  stopbits 类型  int  停止位   取值为 1 或者2
+ *@param  parity   类型  int  效验类型 取值为N,E,O,S
+ *@param  portchar 类型  char* 串口路径
+ */
+SerialPort::SerialPort()
+{
+
+    fd = open(UART_DEVICE,O_RDWR |O_NOCTTY | O_NDELAY);
+
+    speed = BAUDRATE;
     databits = 8;
     stopbits = 1;
-    parity = 'N';
-    data_len = 9;
+    parity = 'n';
 }
-SerialPort::SerialPort(char *pn){
-    PortName = pn;
-    speed = 115200;
-    flow_ctrl = 0;
+
+SerialPort::SerialPort(char *portpath)
+{
+
+    fd = open(portpath,O_RDWR | O_NOCTTY | O_NDELAY);
+
+    speed = BAUDRATE;
     databits = 8;
     stopbits = 1;
-    parity = 'N';
-    data_len = 9;
+    parity = 'n';
 }
 
-SerialPort::~SerialPort(){
+////////////////////////////////////////////////////////////////
+/**
+ *@brief   获取模式命令
+ */
+
+void SerialPort::get_Mode(int &mode){
+    int bytes;
+    ioctl(fd, FIONREAD, &bytes);
+
+    if(bytes == 0) return;
+//    else  cout<<"buff:"<<bytes<<endl;
+    bytes = read(fd,rdata,22);
+//    cout<<"0:"<<int(rdata[0])<<endl;
+//    cout<<"22:"<<int(rdata[21])<<endl;
+    timerlast = (double)cv::getTickCount();
+    if(rdata[0] == 0xA5 && Verify_CRC8_Check_Sum(rdata,3)){
+        //判断针头和CRC校验是否正确
+        mode  = (int)rdata[1];
+//        cout<<"mode"<<mode<<endl;
+        printf("receive mode:%d\r\n",mode);
+
+    }
 }
 
-int SerialPort::UART0_Set(){
+/**
+ *@brief   初始化串口
+ */
+void SerialPort::initSerialPort()
+{
+
+    if(fd==-1){
+        perror(UART_DEVICE);
+        exit(1);
+    }
+    std::cout<<"Opening..."<<std::endl;
+    set_Brate();
+    if (set_Bit(8,1,'N') == FALSE)  {
+        printf("Set Parity Error\n");
+        exit (0);
+    }
+//    set_disp_mode(0);
+    printf("Open successed\n");
+}
+
+
+/**
+ *@brief   设置波特率
+ */
+void SerialPort::set_Brate(){
+    int speed_arr[] = {B115200, B38400, B19200, B9600, B4800, B2400, B1200, B300,
+        B115200, B38400, B19200, B9600, B4800, B2400, B1200, B300, };
+    int name_arr[] = {115200, 38400, 19200, 9600, 4800, 2400, 1200,  300,
+        115200, 38400, 19200, 9600, 4800, 2400, 1200,  300, };
     int   i;
     int   status;
-    int   speed_arr[] = { B115200, B19200, B9600, B4800, B2400, B1200, B300 };
-    int   name_arr[] = { 115200, 19200, 9600, 4800, 2400, 1200, 300 };
+    struct termios   Opt;
+    tcgetattr(fd, &Opt);
+    for ( i= 0;  i < sizeof(speed_arr) / sizeof(int);  i++) {
+        if  (speed == name_arr[i]) {
+            tcflush(fd, TCIOFLUSH);
+            cfsetispeed(&Opt, speed_arr[i]);
+            cfsetospeed(&Opt, speed_arr[i]);
+            status = tcsetattr(fd, TCSANOW, &Opt); //使设置立即生效
+            if  (status != 0) {
+                perror("tcsetattr fd1");
+                return;
+            }
+            tcflush(fd,TCIOFLUSH);
 
-    struct termios options;
+        }
+    }
+}
 
-    /*tcgetattr(fd,&options)µÃµœÓëfdÖžÏò¶ÔÏóµÄÏà¹Ø²ÎÊý£¬²¢œ«ËüÃÇ±£ŽæÓÚoptions,žÃº¯Êý»¹¿ÉÒÔ²âÊÔÅäÖÃÊÇ·ñÕýÈ·£¬žÃŽ®¿ÚÊÇ·ñ¿ÉÓÃµÈ¡£Èôµ÷ÓÃ³É¹Š£¬º¯Êý·µ»ØÖµÎª0£¬Èôµ÷ÓÃÊ§°Ü£¬º¯Êý·µ»ØÖµÎª1.
-    */
-    if (tcgetattr(fd, &options) != 0)
-    {
+/**
+ *@brief   设置串口数据位，停止位和效验位
+ */
+int SerialPort::set_Bit(int databits,int stopbits,int parity)
+{
+    struct termios termios_p;
+    if  ( tcgetattr( fd,&termios_p)  !=  0) {
         perror("SetupSerial 1");
         return(FALSE);
     }
-
-    //ÉèÖÃŽ®¿ÚÊäÈë²šÌØÂÊºÍÊä³ö²šÌØÂÊ
-    for (i = 0; i < sizeof(speed_arr) / sizeof(int); i++)
-    {
-        if (speed == name_arr[i])
-        {
-            cfsetispeed(&options, speed_arr[i]);
-            cfsetospeed(&options, speed_arr[i]);
-        }
-    }
-
-    //ÐÞžÄ¿ØÖÆÄ£Êœ£¬±£Ö€³ÌÐò²»»áÕŒÓÃŽ®¿Ú
-    options.c_cflag |= CLOCAL;
-    //ÐÞžÄ¿ØÖÆÄ£Êœ£¬Ê¹µÃÄÜ¹»ŽÓŽ®¿ÚÖÐ¶ÁÈ¡ÊäÈëÊýŸÝ
-    options.c_cflag |= CREAD;
-
-    //ÉèÖÃÊýŸÝÁ÷¿ØÖÆ
-    switch (flow_ctrl)
-    {
-
-    case 0://²»Ê¹ÓÃÁ÷¿ØÖÆ
-        options.c_cflag &= ~CRTSCTS;
-        break;
-
-    case 1://Ê¹ÓÃÓ²ŒþÁ÷¿ØÖÆ
-        options.c_cflag |= CRTSCTS;
-        break;
-    case 2://Ê¹ÓÃÈíŒþÁ÷¿ØÖÆ
-        options.c_cflag |= IXON | IXOFF | IXANY;
-        break;
-    }
-    //ÉèÖÃÊýŸÝÎ»
-    //ÆÁ±ÎÆäËû±êÖŸÎ»
-    options.c_cflag &= ~CSIZE;
+    termios_p.c_cflag |= (CLOCAL | CREAD);  //接受数据
+    /*设置数据位数*/
+    termios_p.c_cflag &= ~CSIZE;
     switch (databits)
     {
-    case 5:
-        options.c_cflag |= CS5;
-        break;
-    case 6:
-        options.c_cflag |= CS6;
-        break;
-    case 7:
-        options.c_cflag |= CS7;
-        break;
-    case 8:
-        options.c_cflag |= CS8;
-        break;
-    default:
-        fprintf(stderr, "Unsupported data size\n");
-        return (FALSE);
+        case 7:
+            termios_p.c_cflag |= CS7;
+            break;
+        case 8:
+            termios_p.c_cflag |= CS8;
+            break;
+        default:
+            fprintf(stderr,"Unsupported data size\n"); return (FALSE);
     }
-    //ÉèÖÃÐ£ÑéÎ»
+    //设置奇偶校验位
     switch (parity)
     {
-    case 'n':
-    case 'N': //ÎÞÆæÅŒÐ£ÑéÎ»¡£
-        options.c_cflag &= ~PARENB;
-        options.c_iflag &= ~INPCK;
-        break;
-    case 'o':
-    case 'O'://ÉèÖÃÎªÆæÐ£Ñé
-        options.c_cflag |= (PARODD | PARENB);
-        options.c_iflag |= INPCK;
-        break;
-    case 'e':
-    case 'E'://ÉèÖÃÎªÅŒÐ£Ñé
-        options.c_cflag |= PARENB;
-        options.c_cflag &= ~PARODD;
-        options.c_iflag |= INPCK;
-        break;
-    case 's':
-    case 'S': //ÉèÖÃÎª¿Õžñ
-        options.c_cflag &= ~PARENB;
-        options.c_cflag &= ~CSTOPB;
-        break;
-    default:
-        fprintf(stderr, "Unsupported parity\n");
-        return (FALSE);
+        case 'n':
+        case 'N':
+            termios_p.c_cflag &= ~PARENB;   /* Clear parity enable */
+            termios_p.c_iflag &= ~INPCK;     /* Enable parity checking */
+            break;
+        case 'o':
+        case 'O':
+            termios_p.c_cflag |= (PARODD | PARENB); /* 设置为奇效验*/
+            termios_p.c_iflag |= INPCK;             /* Disnable parity checking */
+            break;
+        case 'e':
+        case 'E':
+            termios_p.c_cflag |= PARENB;     /* Enable parity */
+            termios_p.c_cflag &= ~PARODD;   /* 转换为偶效验*/
+            termios_p.c_iflag |= INPCK;       /* Disnable parity checking */
+            break;
+        case 'S':
+        case 's':  /*as no parity*/
+            termios_p.c_cflag &= ~PARENB;
+            termios_p.c_cflag &= ~CSTOPB;break;
+        default:
+            fprintf(stderr,"Unsupported parity\n");
+            return (FALSE);
+
     }
-    // ÉèÖÃÍ£Ö¹Î»
+    /* 设置停止位*/
     switch (stopbits)
     {
-    case 1:
-        options.c_cflag &= ~CSTOPB; break;
-    case 2:
-        options.c_cflag |= CSTOPB; break;
-    default:
-        fprintf(stderr, "Unsupported stop bits\n");
-        return (FALSE);
+        case 1:
+            termios_p.c_cflag &= ~CSTOPB;
+            break;
+        case 2:
+            termios_p.c_cflag |= CSTOPB;
+            break;
+        default:
+            fprintf(stderr,"Unsupported stop bits\n");
+            return (FALSE);
+
     }
+    /* Set input parity option */
+    if (parity != 'n')
+        termios_p.c_iflag |= INPCK;
 
-    //ÐÞžÄÊä³öÄ£Êœ£¬Ô­ÊŒÊýŸÝÊä³ö
-    options.c_oflag &= ~OPOST;
-
-    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);//ÎÒŒÓµÄ
-    //options.c_lflag &= ~(ISIG | ICANON);
-
-    //ÉèÖÃµÈŽýÊ±ŒäºÍ×îÐ¡œÓÊÕ×Ö·û
-    options.c_cc[VTIME] = 1; /* ¶ÁÈ¡Ò»žö×Ö·ûµÈŽý1*(1/10)s */
-    options.c_cc[VMIN] = 1; /* ¶ÁÈ¡×Ö·ûµÄ×îÉÙžöÊýÎª1 */
-
-    //Èç¹û·¢ÉúÊýŸÝÒç³ö£¬œÓÊÕÊýŸÝ£¬µ«ÊÇ²»ÔÙ¶ÁÈ¡ Ë¢ÐÂÊÕµœµÄÊýŸÝµ«ÊÇ²»¶Á
-    tcflush(fd, TCIFLUSH);
-
-    //Œ€»îÅäÖÃ (œ«ÐÞžÄºóµÄtermiosÊýŸÝÉèÖÃµœŽ®¿ÚÖÐ£©
-    if (tcsetattr(fd, TCSANOW, &options) != 0)
+    tcflush(fd,TCIFLUSH);  //清除输入缓存区
+    termios_p.c_cc[VTIME] = 150; /* 设置超时15 seconds*/
+    termios_p.c_cc[VMIN] = 0;  //最小接收字符
+    termios_p.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);  /*Input原始输入*/
+    termios_p.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON); 
+    termios_p.c_iflag &= ~(ICRNL | IGNCR);
+    termios_p.c_oflag &= ~OPOST;   /*Output禁用输出处理*/
+    if (tcsetattr(fd,TCSANOW,&termios_p) != 0)  /* Update the options and do it NOW */
     {
-        perror("com set error!\n");
+        perror("SetupSerial 3");
         return (FALSE);
     }
     return (TRUE);
 }
 
-int SerialPort::UART0_Init(){
-    int err;
-    //ÉèÖÃŽ®¿ÚÊýŸÝÖ¡žñÊœ
-    if (UART0_Set() == FALSE)
+
+////
+//int SerialPort::set_disp_mode(int option)
+//{
+//   int err;
+//   struct termios term;
+//   if(tcgetattr(fd,&term)==-1){
+//     perror("Cannot get the attribution of the terminal");
+//     return 1;
+//   }
+//   if(option)
+//        term.c_lflag|=ECHOFLAGS;   //(ECHO | ECHOE | ECHOK | ECHONL)
+//   else
+//        term.c_lflag &=~ECHOFLAGS;
+//   err=tcsetattr(fd,TCSAFLUSH,&term);
+//   if(err==-1 && err==EINTR){
+//        perror("Cannot set the attribution of the terminal");
+//        return 1;
+//   }
+//   return 0;
+//}
+
+
+////////////////////////////////////////////////////////////
+/**
+ *@brief   转换数据并发送
+
+ *@param  p        类型  int  pitch轴
+ *@param  yaw      类型  int  yaw轴
+ *@param  dis      类型  int  距离
+ *@param  flag     类型  char  目标是否在中间   1为正中间
+ *@param  unsign   类型  int  空白（可添加数据）
+ */
+void SerialPort::send(int p, int yaw, int dis,char flag,int unsign){
+//    serialtimer = (double)cv::getTickCount();
+//    if((serialtimer - timerlast) / cv::getTickFrequency() > 1.0) return;
+    Tdata[0] = 0xA5;
+    Tdata[1] = CmdID0;   //command
+
+    Append_CRC8_Check_Sum(Tdata,3);  //CRC8 校验
+    for(int i = 0;i<4;i++)
     {
-        return FALSE;
+        Tdata[3+i] = p%10;
+        p = (p-p%10)/10;
     }
-    else
+
+    for(int i = 0;i<4;i++)
     {
-        return  TRUE;
+        Tdata[7+i] = yaw%10;
+        yaw = (yaw-yaw%10)/10;
     }
+
+    for(int i = 0;i<4;i++)
+    {
+        Tdata[11+i] = dis%10;
+        dis = (dis-dis%10)/10;
+    }
+
+    Tdata[15] = flag;
+
+    Tdata[16] = 0;
+    Tdata[17] = 0;
+    Tdata[18] = 0;
+    Tdata[19] = 0;
+
+    Append_CRC16_Check_Sum(Tdata,22);  //CRC16校验
+//    std::cout<<"send!"<<endl;
+    write(fd,Tdata,22);   //发送22字节数据到缓存区
 }
 
-void SerialPort::Open(){
-    int open_code;
-    fd = open(PortName, O_RDWR | O_NOCTTY | O_NDELAY);
-    if (FALSE == fd || -1 == fd)
-    {
-        perror("Can't Open Serial Port");
-        open_code = FALSE;
-    }
-    if (fcntl(fd, F_SETFL, 0) < 0)
-    {
-        printf("fcntl failed!\n");
-        open_code = FALSE;
-    }
 
-    int err;
-//    cout<<"fd :"<<open_code<<endl;
-    do
-    {	err = UART0_Init();
-//        printf("Set Port Exactly!\n");
-    } while (FALSE == err || FALSE == open_code);
+/**
+ *@brief   转换数据并发送
+ *@param   data   类型  VisionData(union)  包含pitch,yaw,distance
+ */
+void SerialPort::TransformData(const VisionData &data){
+    //std::cout<<"mode:"<<data.mode<<"yaw:"<<data.yaw_angle.d<<" pitch:"<<data.pitch_angle.d<<std::endl;
+//    serialtimer = (double)cv::getTickCount();
+//    if((serialtimer - timerlast) / cv::getTickFrequency() > 1.0) return;
+    Tdata[0] = 0xA5;
+
+    Tdata[1] = CmdID1;
+    Append_CRC8_Check_Sum(Tdata,3);
+
+    Tdata[3] = data.pitch_angle.c[0];
+    Tdata[4] = data.pitch_angle.c[1];
+
+    Tdata[5] = data.pitch_angle.c[2];
+    Tdata[6] = data.pitch_angle.c[3];
+
+    Tdata[7] = data.yaw_angle.c[0];
+    Tdata[8] = data.yaw_angle.c[1];
+    Tdata[9] = data.yaw_angle.c[2];
+    Tdata[10] = data.yaw_angle.c[3];
+
+    Tdata[11] = data.dis.c[0];
+    Tdata[12] = data.dis.c[1];
+    Tdata[13] = data.dis.c[2];
+    Tdata[14] = data.dis.c[3];
+
+    Tdata[15] = 0x00;
+
+
+    Tdata[16] = 0x00;
+    Tdata[17] = 0x00;
+    Tdata[18] = 0x00;
+    Tdata[19] = 0x00;
+
+
+    Append_CRC16_Check_Sum(Tdata,22);
+
+    write(fd,Tdata,22);
 }
 
-int SerialPort::Recv(char *rcv_buf){
-    int len, fs_sel;
-    fd_set fs_read;
 
-    struct timeval time;
-
-    FD_ZERO(&fs_read);
-    FD_SET(fd, &fs_read);
-
-    time.tv_sec = 1000;
-    time.tv_usec = 0;
-
-    fs_sel = select(fd + 1, &fs_read, NULL, NULL, &time);
-    // fs_sel = 1;
-
-    if (fs_sel)
-    {
-        len = read(fd, rcv_buf, data_len);
-//        printf("I am right!(version1.2) len = %d fs_sel = %d\n", len, fs_sel);
-        return len;
-    }
-    else
-    {
-        printf("Sorry,I am wrong!");
-        return FALSE;
-    }
-}
-
-int SerialPort::Send(char *send_buf)
-{
-    int len = 0;
-
-    len = write(fd, send_buf, data_len);
-    if (len == data_len)
-    {
-        return len;
-    }
-    else
-    {
-        tcflush(fd, TCOFLUSH);
-        return FALSE;
-    }
-}
-
+//close port
 void SerialPort::Close(){
     close(fd);
 }
