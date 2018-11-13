@@ -1,6 +1,6 @@
 #include "video.h"
 #include "v4l2_set.h"
-
+//#define DEBUG
 
 FileStorage fs("canshu.yaml",FileStorage::READ);
 
@@ -15,7 +15,9 @@ int main()
 
     int saturaion,exposure,contrast,gain,brightness,white;
     fs["saturation"] >> saturaion;
+    cout<<saturaion<<endl;
     fs["exposure"] >> exposure;
+    cout<<exposure<<endl;
     fs["contrast"] >> contrast;
     fs["gain"] >> gain;
     fs["brightness"] >> brightness;
@@ -37,20 +39,17 @@ int main()
     //select == 2--.avi
     //flag == 1--find red armour
     //flag == 2--find blue armour
-    string c1 = "/home/mjs/Videos/bubing0.avi";  //save video path
-    int select;
-    int flag;
+//    string c1 = "/home/mjs/Videos/bubing0.avi";  //save video path
 
-    fs["select"]>>select;
-    fs["flag"]>>flag;
-    if (select == 1)
-    {
-    video vd(0,c1,flag);
+string c1 ="bubing.avi";
+//    fs["select"]>>select;   //camera or video_file
+//    fs["flag"]>>flag;   //  which mode.
+#ifndef DEBUG
+//    video vd(0,c1,flag);
+    video vd(0,c1);
     vd.camera_read_write();
-    }
-    else
-    {
-        video vd(c2,flag);
-        vd.file_read();
-    }
+#else
+    video vd(c2);
+    vd.file_read();
+#endif
 }

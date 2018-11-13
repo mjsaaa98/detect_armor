@@ -1,6 +1,7 @@
 #include "find_armour.h"
 #include "get_colors.h"
 #include "send_location.h"
+#include <anglesolve.h>
 find_armour::find_armour(FileStorage f)
 {
     fs = f;
@@ -13,6 +14,8 @@ find_armour::find_armour(FileStorage f)
     fs["height_d_wucha"] >> height_d_wucha;
     fs["min_rate"] >> min_rate;
     fs["max_rate"] >> max_rate;
+    isfind = 0;
+    ismiddle =0;
 }
 
 
@@ -1067,7 +1070,7 @@ Mat find_armour::find_red3(Mat img,Mat dst)
 }
 
 
-Mat find_armour::find_blue3(Mat img,Mat dst)
+Mat find_armour::find_blue3(Mat img,Mat dst,Point& XY,int& ismiddle,int& isfind)
 {
 
     get_colors gc;      //class get_colors
@@ -1171,11 +1174,11 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
             }
         }
 
-
         if(armour_center.size()==0)
         {
             flags = 0;
             dstROI = roi(dst,Point(img.cols/2,img.rows/2),100,img.cols,img.rows);
+            isfind = 0;
         }
         else if(armour_center.size()==1)
         {
@@ -1184,6 +1187,7 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
             dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
+            isfind = 1;
         }
         else
         {
@@ -1204,6 +1208,7 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
             dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
+            isfind = 1;
         }
     }
 
@@ -1292,6 +1297,7 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
         if(armour_center.size()==0)
         {
             flags = 0;
+            isfind = 0;
         }
         else if(armour_center.size()==1)
         {
@@ -1299,6 +1305,7 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
             last_d = diameters[0];
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
+            isfind = 1;
         }
         else
         {
@@ -1318,28 +1325,50 @@ Mat find_armour::find_blue3(Mat img,Mat dst)
             last_d = diameters[n];
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
+            isfind = 1;
         }
     }
 //    send_location send_l;
 //    send_l.send_coordinate(last_center);
 //    cout<<last_center<<endl;
+    XY = last_center;
     imshow("ROI",dstROI);
     imshow("find",img);
     return dst;
 }
 
 
-Mat find_armour::find_blue4(Mat img,Mat dst)
+
+Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data)
 {
 
     /* 在Blue3的基础上，把寻找装甲板的方法写成一个函数search_armour().接着根据装甲板的数量进行不同的操作
      */
 
-    get_colors gc;      //class get_colors
+    get_colors gc;      //class SR
+
+//    double camera_canshu[9] = {527.3444,0,337.5232,0,531.2206,254.4946,0,0,1};
+    double camera_canshu[9] = {400,0,337,0,500,200,0,0,1};
+
+    double dist_coeff[5] = {-0.4259,0.2928,-0.0106,-0.0031,0};
+    Mat camera_matrix(3,3,CV_64FC1,camera_canshu);
+    Mat dist_matrix(1,5,CV_64FC1,dist_coeff);
+    AngleSolve ans(camera_matrix,dist_matrix,21.6,5.4,0,20,1000,1);
+    double rot_c[] = {1,0,0,0,1,0,0,0,1};
+    double tran_c[] = {0,0,0};
+    Mat rot_martrix(3,3,CV_64FC1,rot_c);
+    Mat tran_matrix(3,1,CV_64FC1,tran_c);
+    ans.Relation_Camera_PTZ(rot_martrix,tran_matrix,0);
 
     vector<double> diameters;
 
     vector<Point2f> armour_center;
+
+    vector<double> Heights;
+
+    vector<double> Rotated_angles;
+
+    vector<Point2f> XY;
 
     static Point2f last_center;
 
@@ -1347,26 +1376,36 @@ Mat find_armour::find_blue4(Mat img,Mat dst)
 
     static double last_d;
 
+    static double last_angle;
+
+    static Size2f last_size;
+
     static int flags =0;
 
     dst = gc.HSV_blue1(img,dst.clone());
 
     if(flags == 0)
     {
-        search_armour(img,dst,armour_center,diameters,flags);
+        search_armour(img,dst,armour_center,diameters,flags,Rotated_angles,Heights);
 
         if(armour_center.size()==0)
         {
             flags = 0;
-            dstROI = roi(dst,Point(img.cols/2,img.rows/2),100,img.cols,img.rows);
+//            dstROI = roi(dst,Point(img.cols/2,img.rows/2),100,img.cols,img.rows);
+            isfind = 0;
         }
         else if(armour_center.size()==1)
         {
             last_center = armour_center[0];
             last_d = diameters[0];
-            dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
+            if (last_angle<=0)
+                last_size = Size2f(last_d,Heights[0]);
+            else
+                last_size = Size2f(Heights[0],last_d);
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
+            isfind = 1;
+
         }
         else
         {
@@ -1384,9 +1423,14 @@ Mat find_armour::find_blue4(Mat img,Mat dst)
 
             last_center = armour_center[n];
             last_d = d1;
-            dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
+            last_angle = Rotated_angles[n];
+            if (last_angle<=0)
+                last_size = Size2f(last_d,Heights[n]);
+            else
+                last_size = Size2f(Heights[n],last_d);
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
+            isfind = 1;
         }
     }
 
@@ -1396,27 +1440,33 @@ Mat find_armour::find_blue4(Mat img,Mat dst)
         //截取本阵图片，只对截图操作
         dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
 
-        search_armour(img,dstROI,armour_center,diameters,flags);
+        search_armour(img,dstROI,armour_center,diameters,flags,Rotated_angles,Heights);
 
         //识别到的装甲板个数
         while(armour_center.size()==0)
         {
-            cout<<"a"<<endl;
+//            cout<<"a"<<endl;
             last_d = last_d*1.3;
             dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
-            search_armour(img,dstROI,armour_center,diameters,flags);
+            search_armour(img,dstROI,armour_center,diameters,flags,Rotated_angles,Heights);
             if(x1==1||x2==img.cols-1||y1==1||y2==img.rows-1) break;
         }
         if(armour_center.size()==0)
         {
             flags = 0;
+            isfind = 0;
         }
         else if(armour_center.size()==1)
         {
             last_center = armour_center[0];
             last_d = diameters[0];
+            if (last_angle<=0)
+                last_size = Size2f(last_d,Heights[0]);
+            else
+                last_size = Size2f(Heights[0],last_d);
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
+            isfind = 1;
         }
         else
         {
@@ -1432,20 +1482,166 @@ Mat find_armour::find_blue4(Mat img,Mat dst)
             }
             last_center = armour_center[n];
             last_d = diameters[n];
+            if (last_angle<=0)
+                last_size = Size2f(last_d,Heights[n]);
+            else
+                last_size = Size2f(Heights[n],last_d);
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
+            isfind = 1;
         }
+        imshow("ROI",dstROI);
+
     }
 //    send_location send_l;
 //    send_l.send_coordinate(last_center);
 //    cout<<last_center<<endl;
-    imshow("ROI",dstROI);
+
+//    Point2f xy1 = last_center+Point2f(-0.5*last_d,-0.2*last_d);
+//    Point2f xy2 = last_center+Point2f(0.5*last_d,-0.2*last_d);
+
+//    Point2f xy3 = last_center-Point2f(-0.5*last_d,0.2*last_d);
+//    Point2f xy4 = last_center-Point2f(0.5*last_d,0.2*last_d);
+//    XY.clear();
+//    XY.push_back(xy1);
+//    XY.push_back(xy2);
+//    XY.push_back(xy3);
+//    XY.push_back(xy4);
+    RotatedRect RRect = RotatedRect(last_center,last_size,last_angle);
+    double xAngle=0,yAngle=0;
+    if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,20,0,Point2f(0,0)))
+        cout<<xAngle<<","<<yAngle<<endl;
+    data = {last_center.x,last_center.y,0,ismiddle,isfind};
     imshow("find",img);
+
     return dst;
 }
 
 
-void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,vector<double> & diameters,int flags)
+//Mat find_armour::find_red4(Mat img,Mat dst,Point &XY,int& ismiddle,int& isfind)
+//{
+
+//    /* 在Blue3的基础上，把寻找装甲板的方法写成一个函数search_armour().接着根据装甲板的数量进行不同的操作
+//     */
+
+//    get_colors gc;      //class get_colors
+
+//    vector<double> diameters;
+
+//    vector<Point2f> armour_center;
+
+//    static Point2f last_center;
+
+//    static Mat dstROI;
+
+//    static double last_d;
+
+//    static int flags = 0;
+
+//    dst = gc.HSV_red1(img,dst.clone());
+
+//    if(flags == 0)
+//    {
+//        search_armour(img,dst,armour_center,diameters,flags);
+
+//        if(armour_center.size()==0)
+//        {
+//            flags = 0;
+//            dstROI = roi(dst,Point(img.cols/2,img.rows/2),100,img.cols,img.rows);
+//            isfind = 0;
+//        }
+//        else if(armour_center.size()==1)
+//        {
+//            last_center = armour_center[0];
+//            last_d = diameters[0];
+//            dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
+//            circle(img,last_center,last_d/2,Scalar(0,255,0));
+//            flags = 1;
+//            isfind = 1;
+//        }
+//        else
+//        {
+//            int n = 0;
+//            double d1 = diameters[0];
+//            for (int i = 1;i<armour_center.size();i++)
+//            {
+//                double d2 = diameters[i];
+//                if(d1>d2)
+//                {
+//                    d1 = d2;
+//                    n = i;
+//                }
+//            }
+
+//            last_center = armour_center[n];
+//            last_d = d1;
+//            dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
+//            circle(img,last_center,last_d/2,Scalar(0,255,0));
+//            flags = 1;
+//            isfind = 1;
+//        }
+//    }
+
+////
+//    else
+//    {
+//        //截取本阵图片，只对截图操作
+//        dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
+
+//        search_armour(img,dstROI,armour_center,diameters,flags);
+
+//        //识别到的装甲板个数
+//        while(armour_center.size()==0)
+//        {
+//            cout<<"a"<<endl;
+//            last_d = last_d*1.3;
+//            dstROI = roi(dst,last_center,last_d,img.cols,img.rows);
+//            search_armour(img,dstROI,armour_center,diameters,flags);
+//            if(x1==1||x2==img.cols-1||y1==1||y2==img.rows-1) break;
+//        }
+//        if(armour_center.size()==0)
+//        {
+//            flags = 0;
+//            isfind = 0;
+//        }
+//        else if(armour_center.size()==1)
+//        {
+//            last_center = armour_center[0];
+//            last_d = diameters[0];
+//            circle(img,last_center,last_d/2,Scalar(0,255,0));
+//            flags = 1;
+//            isfind = 1;
+//        }
+//        else
+//        {
+//            int n = 0;
+//            double d1 = diameters[0];
+//            for (int i = 1;i<armour_center.size();i++)
+//            {
+//                double d2 = diameters[i];
+//                if(d1>d2)
+//                {
+//                    n = i;
+//                }
+//            }
+//            last_center = armour_center[n];
+//            last_d = diameters[n];
+//            circle(img,last_center,last_d/2,Scalar(0,255,0));
+//            flags = 1;
+//            isfind = 1;
+//        }
+//    }
+////    send_location send_l;
+////    send_l.send_coordinate(last_center);
+////    cout<<last_center<<endl;
+//    XY = last_center;
+//    imshow("ROI",dstROI);
+//    imshow("find",img);
+//    return dst;
+//}
+
+
+void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,vector<double> & diameters,int flags,vector<double> &Rotated_angles,vector<double>&Heights)
 {
 
     /* 功能：寻找装甲板的方法。分为截图和不截图两种情况
@@ -1471,11 +1667,12 @@ void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,
         for(int i = 0;i<num;i++)
         {
             rRect[i] = minAreaRect(contours[i]);
+
             areas[i] =  contourArea(contours[i]);
             boxPoints(rRect[i],vertices[i]);
 
             //长宽分明时。
-            if(areas[i]>50&&((rRect[i].size.height>rRect[i].size.width&&rRect[i].angle>-20)
+            if(areas[i]>30&&((rRect[i].size.height>rRect[i].size.width&&rRect[i].angle>-20)
                      ||(rRect[i].size.height<rRect[i].size.width&&rRect[i].angle<-60)))
             {
 
@@ -1495,6 +1692,7 @@ void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,
                 Vec4f con_pram(h,rRect[i].center.x,rRect[i].center.y,rRect[i].angle);
                 area.push_back(areas[i]);
                 con_prams.push_back(con_pram);
+
             }
         }
         //delect some bad.
@@ -1504,6 +1702,9 @@ void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,
             {
                 double height1 = con_prams[i][0];
                 double height2 = con_prams[j][0];
+
+                double x1 = con_prams[i][1];
+                double x2 = con_prams[j][1];
 
                 double y1 = con_prams[i][2];
                 double y2 = con_prams[j][2];
@@ -1525,6 +1726,21 @@ void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,
                     Point center=Point((con_prams[i][1]+con_prams[j][1])*0.5,
                             (con_prams[i][2]+con_prams[j][2])*0.5);
                     armour_center.push_back(center);
+
+                    if (x1<x2)
+                    {
+                        double Rotated_angle = atan((y2-y1)/(x2-x1));
+                        Rotated_angles.push_back(Rotated_angle);
+                        double h = con_prams[i][0]>con_prams[j][0]?con_prams[i][0]:con_prams[j][0];
+                        Heights.push_back(h);
+                    }
+                    else
+                    {
+                        double Rotated_angle = atan((y2-y1)/(x1-x2));
+                        Rotated_angles.push_back(Rotated_angle);
+                        double h = con_prams[i][0]>con_prams[j][0]?con_prams[i][0]:con_prams[j][0];
+                        Heights.push_back(h);
+                    }
                 }
             }
         }
@@ -1583,6 +1799,9 @@ void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,
                 double height1 = con_prams[i][0];
                 double height2 = con_prams[j][0];
 
+                double x1 = con_prams[i][1];
+                double x2 = con_prams[j][1];
+
                 double y1 = con_prams[i][2];
                 double y2 = con_prams[j][2];
 
@@ -1601,6 +1820,20 @@ void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,
                     Point center=Point((con_prams[i][1]+con_prams[j][1])*0.5,
                             (con_prams[i][2]+con_prams[j][2])*0.5);
                     armour_center.push_back(center);
+                    if (x1<x2)
+                    {
+                        double Rotated_angle = atan((y2-y1)/(x2-x1));
+                        Rotated_angles.push_back(Rotated_angle);
+                        double h = con_prams[i][0]>con_prams[j][0]?con_prams[i][0]:con_prams[j][0];
+                        Heights.push_back(h);
+                    }
+                    else
+                    {
+                        double Rotated_angle = atan((y2-y1)/(x1-x2));
+                        Rotated_angles.push_back(Rotated_angle);
+                        double h = con_prams[i][0]>con_prams[j][0]?con_prams[i][0]:con_prams[j][0];
+                        Heights.push_back(h);
+                    }
                 }
             }
         }

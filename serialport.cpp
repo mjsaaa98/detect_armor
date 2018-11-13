@@ -292,10 +292,10 @@ void SerialPort::TransformData(const VisionData &data){
     Tdata[13] = data.dis.c[2];
     Tdata[14] = data.dis.c[3];
 
-    Tdata[15] = 0x00;
+    Tdata[15] = data.ismiddle;
 
 
-    Tdata[16] = 0x00;
+    Tdata[16] = data.isfind;
     Tdata[17] = 0x00;
     Tdata[18] = 0x00;
     Tdata[19] = 0x00;

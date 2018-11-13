@@ -1,3 +1,5 @@
+#ifndef SERIALPROT_H
+#define SERIALPROT_H
 
 /**
  *@class  SerialPort
@@ -58,6 +60,8 @@ typedef struct
     float2uchar yaw_angle;
     float2uchar pitch_angle;
     float2uchar dis;
+    int ismiddle;
+    int isfind;
 }VisionData;
 static double serialtimer, timerlast;
 
@@ -82,3 +86,4 @@ class SerialPort
     void Close();
 };
 
+#endif

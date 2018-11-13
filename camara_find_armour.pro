@@ -14,7 +14,8 @@ SOURCES += main.cpp \
     find_armour.cpp \
     send_location.cpp \
     serialport.cpp \
-    CRC_Check.cpp
+    CRC_Check.cpp \
+    anglesolve.cpp
 
 LIBS += -L/usr/local/lib \
      -lopencv_core \
@@ -22,6 +23,7 @@ LIBS += -L/usr/local/lib \
      -lopencv_imgproc \
      -lopencv_videoio \
      -lopencv_imgcodecs \
+     -lopencv_calib3d \
      -lopencv_features2d \
      -lopencv_flann
 
@@ -32,4 +34,5 @@ HEADERS += \
     find_armour.h \
     send_location.h \
     serialport.h \
-    CRC_Check.h
+    CRC_Check.h \
+    anglesolve.h

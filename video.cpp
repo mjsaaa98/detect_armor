@@ -1,24 +1,28 @@
 #include "video.h"
-#include "find_armour.h"
-
-video::video(string c,int f)
+#include <serialport.h>
+video::video(string c)
 {
     filename = c;
-    flag = f;
+//    flag = f;
+    mode = 2;
+//    ismiddle = 0;
+//    isfind = 0;
+//    XY = Point2f(0,0);
 }
 
-video::video(int num,string c,int f)
+video::video(int num,string c)
 {
     n = num;
+    mode = 2;
     filename = c;
-    flag = f;
+//    flag = f;
 }
 
 //open camera and write .avi file.
 //
 void video::camera_read_write()
 {
-
+    VisionData data = {0,0,0,0,0};
     find_armour f_armour(fs);
     VideoCapture camera0(0);
     //设置摄像头分辨率为1280x720
@@ -30,12 +34,15 @@ void video::camera_read_write()
         cout << "Failed!"<<endl;
     }
 
+//    SerialPort sp;
+//    sp.initSerialPort();
+
 
     while (1)
     {
         Mat frame;
-        double t1=0,t2=0;
-        t1 = getTickCount();
+//        double t1=0,t2=0;
+//        t1 = getTickCount();
         camera0 >> frame;
         if (frame.empty()) break;
         writer<<frame;
@@ -59,23 +66,26 @@ void video::camera_read_write()
     //flag == 1 -- red
     //flag == 2 -- blue
 
-        if(flag==1) dst = f_armour.find_blue1(frame,dst.clone());
-        if(flag==2) dst = f_armour.find_blue3(frame,dst.clone());
-        if(flag==3) dst = f_armour.find_blue4(frame,dst.clone());
-        if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
-        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
-        if(flag==6) dst = f_armour.find_red3(frame,dst.clone());
+//        sp.get_Mode(mode);
+//        if(flag==2) dst = f_armour.find_blue1(frame,dst.clone());
+//        if(mode==3) dst = f_armour.find_blue3(frame,dst.clone(),XY,ismiddle,isfind);
+        if(mode==2) dst = f_armour.find_blue4(frame,dst.clone(),data);
+//        if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
+//        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
+//        if(mode==1) dst = f_armour.find_red4(frame,dst.clone(),XY,ismiddle,isfind);
+
+//        cout<<isfind<<endl;
+//        VisionData data = {XY.x,XY.y,0,ismiddle,isfind};
+//        sp.TransformData(data);
 
 
-
-
-        imshow("dst",dst);
 //        t2 = getTickCount();
 //        double fps = (t2-t1)/getTickFrequency();
-        //cout<<"time:"<<fps<<endl;
+//        cout<<"time:"<<fps<<endl;
         int i = waitKey(30);
         if( i=='q') break;
     }
+//    sp.Close();
     camera0.release();
 }
 
@@ -103,13 +113,15 @@ void video::file_read()
 
 //        imshow("src",frame);
 
+        int ismiddle,isfind;
+        Point XY;
         Mat dst = Mat::zeros(frame.size(), CV_8UC1);
-        if(flag==1) dst = f_armour.find_blue1(frame,dst.clone());
-        if(flag==2) dst = f_armour.find_blue3(frame,dst.clone());
-        if(flag==3) dst = f_armour.find_blue4(frame,dst.clone());
-        if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
-        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
-        if(flag==6) dst = f_armour.find_red3(frame,dst.clone());
+//        if(flag==1) dst = f_armour.find_blue1(frame,dst.clone());
+//        if(flag==2) dst = f_armour.find_blue3(frame,dst.clone(),XY,ismiddle,isfind);
+//        if(mode==2) dst = f_armour.find_blue4(frame,dst.clone(),data);
+//        if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
+//        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
+//        if(flag==6) dst = f_armour.find_red4(frame,dst.clone(),XY,ismiddle,isfind);
 
         imshow("dst",dst);
         t2 = getTickCount();

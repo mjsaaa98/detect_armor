@@ -9,6 +9,8 @@
 #include<time.h>
 #include<QDebug>
 #include<QTime>
+#include "find_armour.h"
+
 
 using namespace std;
 using namespace cv;
@@ -16,14 +18,18 @@ using namespace cv;
 class video
 {
 public:
-    video(string c,int);   //read video file
-    video(int n,string filename,int);   //open camera
+    video(string c);   //read video file
+    video(int n,string filename);   //open camera
     void camera_read_write();
     void file_read();
 private:
     int n;   //open camera num
     string filename;
-    int flag;   //select
+//    int flag;   //select
+    int mode;
+//    int ismiddle;
+//    int isfind;
+//    Point XY;
 };
 
 #endif // VIDEO_H

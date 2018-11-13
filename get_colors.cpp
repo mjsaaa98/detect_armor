@@ -16,10 +16,10 @@ Mat get_colors::HSV_blue1(Mat img,Mat dst)
 
 
     cvtColor(img, img_blue, COLOR_BGR2HSV);
-    vector<Mat> planes;
-    split(img_blue,planes);
-    planes[2]-=30;
-    merge(planes,img_blue);
+//    vector<Mat> planes;
+//    split(img_blue,planes);
+//    planes[2]-=30;
+//    merge(planes,img_blue);
     inRange(img_blue, Scalar(iLowH, iLowS, iLowV), Scalar(iHighH, iHighS, iHighV), dst);
 
     //open and close operation.
