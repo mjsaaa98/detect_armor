@@ -25,6 +25,7 @@ LIBS += -L/usr/local/lib \
      -lopencv_imgcodecs \
      -lopencv_calib3d \
      -lopencv_features2d \
+     -lopencv_video \
      -lopencv_flann
 
 HEADERS += \

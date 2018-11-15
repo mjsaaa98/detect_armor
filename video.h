@@ -10,7 +10,8 @@
 #include<QDebug>
 #include<QTime>
 #include "find_armour.h"
-
+#include <anglesolve.h>
+#include <opencv2/video/tracking.hpp>
 
 using namespace std;
 using namespace cv;
