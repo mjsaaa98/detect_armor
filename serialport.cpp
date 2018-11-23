@@ -48,7 +48,7 @@ void SerialPort::get_Mode(int &mode){
     bytes = read(fd,rdata,22);
 //    cout<<"0:"<<int(rdata[0])<<endl;
 //    cout<<"22:"<<int(rdata[21])<<endl;
-    timerlast = (double)cv::getTickCount();
+//    timerlast = (double)cv::getTickCount();
     if(rdata[0] == 0xA5 && Verify_CRC8_Check_Sum(rdata,3)){
         //判断针头和CRC校验是否正确
         mode  = (int)rdata[1];

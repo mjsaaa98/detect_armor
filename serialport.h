@@ -17,12 +17,7 @@
 #include <sys/ioctl.h>
 #include <iostream>
 #include "CRC_Check.h"
-#include <opencv2/opencv.hpp>
-#include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
 using namespace std;
-using namespace cv;
 
 #define TRUE 1
 #define FALSE 0

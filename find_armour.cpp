@@ -167,7 +167,7 @@ Mat find_armour::find_red2(Mat img,Mat dst)
             double area_rate = area[i]/area[j];
             double height_d = abs(height2-height1);
             double angle_d = abs(angle2-angle1);
-            double angle_a = abs(angle1+angle2);
+//            double angle_a = abs(angle1+angle2);
             double y_dist = abs(y2-y1);
             double y_dist_wucha = 20;
             double angle_wucha = 20;

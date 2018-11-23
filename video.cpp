@@ -1,7 +1,5 @@
 #include "video.h"
 #include <serialport.h>
-#define KALMAN_OPEN
-//#define OPEN_SERIAL
 
 video::video(string c)
 {
@@ -58,7 +56,7 @@ void video::camera_read_write()
     setIdentity(KF.measurementMatrix);
     setIdentity(KF.measurementNoiseCov,Scalar::all(1));  //R
     setIdentity(KF.processNoiseCov,Scalar(10e-3));   //Q
-    setIdentity(KF.errorCovPost,Scalar(1));
+    setIdentity(KF.errorCovPost,Scalar(10e-2));
     KF.statePost = (Mat_<float>(4,1)<<1,1,1,1);
 //    cout<<KF.statePost<<endl;
     Mat measurement = Mat::zeros(measureNum,1,CV_32F);
@@ -84,7 +82,7 @@ void video::camera_read_write()
 
 
 
-    int FirstPic = 1;
+//    int FirstPic = 1;
     int numofpic = 0;
     Mat camera_location;
     Mat pre_camera_location;
@@ -127,6 +125,7 @@ void video::camera_read_write()
 //        cout<<isfind<<endl;
 
         double xAngle=0,yAngle=0,dis=0;
+//        double last_xAngle = 0,last_yAngle = 0;
         double move_dis = 0;
         double v = 0;
         if(mode == 0)
@@ -137,7 +136,7 @@ void video::camera_read_write()
         {
             if(data.isfind!= 0)
             {
-                FirstPic = 0;
+//                FirstPic = 0;
                 numofpic++;
                 if (numofpic==1)
                 {
@@ -163,8 +162,8 @@ void video::camera_read_write()
 #ifdef KALMAN_OPEN
                 //1-2
                 Mat prediction = KF.predict();
-                float pre_xAngle = prediction.at<float>(0);
-                float pre_yAngle = prediction.at<float>(1);
+//                float pre_xAngle = prediction.at<float>(0);
+//                float pre_yAngle = prediction.at<float>(1);
 
                 //3-4
                 measurement.at<float>(0) = (float)xAngle;
@@ -172,9 +171,17 @@ void video::camera_read_write()
 
                 //5
                 KF.correct(measurement);
+                //预测下一帧的位置
+                Mat next_Angle;   //下一帧的角度
+                gemm(KF.transitionMatrix,KF.statePost,1,NULL,0,next_Angle);
 
-                data.pitch_angle.f = pre_xAngle;
-                data.yaw_angle.f =  pre_yAngle;
+            //发送预测的下一帧位置
+                data.pitch_angle.f = next_Angle.at<float>(0);
+                data.yaw_angle.f =  next_Angle.at<float>(1);
+
+            //发送本帧预测值
+//                data.pitch_angle.f = pre_xAngle;
+//                data.yaw_angle.f =  pre_yAngle;
                 data.dis.f = dis;
 //                cout<<dis<<endl;
 //                cout<<pre_xAngle<<endl;
@@ -182,13 +189,12 @@ void video::camera_read_write()
                 data.pitch_angle.f = xAngle;
                 data.yaw_angle.f =  yAngle;
                 data.dis.f = dis;
-
 #endif
     //            cout<<xAngle<<","<<yAngle<<endl;
             }
             else
             {
-                FirstPic = 1;
+//                FirstPic = 1;
                 numofpic = 0;
             }
 
@@ -201,7 +207,7 @@ void video::camera_read_write()
 //        t2 = getTickCount();
 //        double fps = (t2-t1)/getTickFrequency();
 //        cout<<"time:"<<fps<<endl;
-        int i = waitKey(10);
+        int i = waitKey(1);
         if( i=='q') break;
     }
 //    sp.Close();

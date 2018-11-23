@@ -13,7 +13,9 @@
 #include <anglesolve.h>
 #include <opencv2/video/tracking.hpp>
 //#define VIDEO_DEBUG   //使用视频测试
-#define CAMERA_DEBUG   //不接受数据自己开相机测试
+//#define CAMERA_DEBUG   //不接受数据自己开相机测试
+#define KALMAN_OPEN     //打开卡尔曼
+#define OPEN_SERIAL     //打开串口
 
 using namespace std;
 using namespace cv;
