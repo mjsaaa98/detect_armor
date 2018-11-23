@@ -196,7 +196,7 @@ void AngleSolve::PTZ2Barrel(const cv::Mat & pos_in_ptz,double & angle_P,double &
 //}
 
 
-bool AngleSolve::Rotated_SolveAngle(const RotatedRect rect, double & angle_P, double & angle_Y, double speed_bullet, double current_ptz_angle, const cv::Point2f & offset)
+bool AngleSolve::Rotated_SolveAngle(const RotatedRect rect, double & angle_P, double & angle_Y, double &dis, Mat& camera_location, double speed_bullet, double current_ptz_angle, const cv::Point2f & offset)
 {
     vector<Point2f> target2d;
 //    Rect_GetPosition2d(rect,target2d,offset);
@@ -204,13 +204,13 @@ bool AngleSolve::Rotated_SolveAngle(const RotatedRect rect, double & angle_P, do
 
     Mat r;
     SolvepnpPro(target2d,r,position_in_camera);
-
+    camera_location = position_in_camera.clone();
 //    position_in_camera.at<double>(2, 0) = scale_z * position_in_camera.at<double>(2, 0);
     if (position_in_camera.at<double>(2, 0) < min_distance || position_in_camera.at<double>(2, 0) > max_distance){
-        cout << "out of range: [" << min_distance << ", " << max_distance << "]\n";
+//        cout << "out of range: [" << min_distance << ", " << max_distance << "]\n";
         return false;
     }
-
+    dis = position_in_camera.at<double>(2, 0);
     Camera2PTZ(position_in_camera,position_in_ptz);
 
     PTZ2Barrel(position_in_ptz,angle_P,angle_Y,speed_bullet);

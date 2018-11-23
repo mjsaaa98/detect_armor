@@ -1,13 +1,13 @@
 #include "video.h"
 #include <serialport.h>
 #define KALMAN_OPEN
-#define OPEN_SERIAL
-#define VIDEO_DEBUG
+//#define OPEN_SERIAL
+
 video::video(string c)
 {
     filename = c;
 //    flag = f;
-#ifdef VIDEO_DEBUG
+#ifdef CAMERA_DEBUG
     mode = 2;
 #else
     mode = 0;
@@ -20,7 +20,7 @@ video::video(string c)
 video::video(int num,string c)
 {
     n = num;
-#ifdef VIDEO_DEBUG
+#ifdef CAMERA_DEBUG
     mode = 2;
 #else
     mode = 0;
@@ -29,6 +29,7 @@ video::video(int num,string c)
 //    flag = f;
 }
 
+#ifndef VIDEO_DEBUG
 //open camera and write .avi file.
 //
 void video::camera_read_write()
@@ -83,12 +84,16 @@ void video::camera_read_write()
 
 
 
-
+    int FirstPic = 1;
+    int numofpic = 0;
+    Mat camera_location;
+    Mat pre_camera_location;
+    Mat now_camera_location;
     while (1)
     {
         Mat frame;
-//        double t1=0,t2=0;
-//        t1 = getTickCount();
+        double t1=0,t2=0;
+        t1 = getTickCount();
         camera0 >> frame;
         if (frame.empty()) break;
         writer<<frame;
@@ -120,32 +125,73 @@ void video::camera_read_write()
 //        if(mode==1) dst = f_armour.find_red4(frame,dst.clone(),XY,ismiddle,isfind);
 
 //        cout<<isfind<<endl;
-        double xAngle=0,yAngle=0;
-        if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,20,0,Point2f(0,0)))
+
+        double xAngle=0,yAngle=0,dis=0;
+        double move_dis = 0;
+        double v = 0;
+        if(mode == 0)
         {
-            cout<<"============"<<endl;
-            cout<<xAngle<<endl;
+            data.isfind = 0;
+        }
+        else if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,dis,camera_location,20,0,Point2f(0,0)))
+        {
+            if(data.isfind!= 0)
+            {
+                FirstPic = 0;
+                numofpic++;
+                if (numofpic==1)
+                {
+                    pre_camera_location = camera_location.clone();
+                }
+                else
+                {
+                    now_camera_location = camera_location.clone();
+                    double x1 = now_camera_location.at<double>(0,0);
+                    double x2 = pre_camera_location.at<double>(0,0);
+                    double y1 = now_camera_location.at<double>(1,0);
+                    double y2 = pre_camera_location.at<double>(1,0);
+                    double z1 = now_camera_location.at<double>(2,0);
+                    double z2 = pre_camera_location.at<double>(2,0);
+                    move_dis = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)+(z1-z2)*(z1-z2));
+                    t2 = getTickCount();
+                    v = move_dis/((t2-t1)/getTickFrequency()*1000)*10;
+                    pre_camera_location = now_camera_location.clone();
+                    if(v>1)                    cout<<v<<"m/s"<<endl;
+                }
+//                cout<<"============"<<endl;
+//                cout<<xAngle<<endl;
 #ifdef KALMAN_OPEN
-            //1-2
-            Mat prediction = KF.predict();
-            float pre_xAngle = prediction.at<float>(0);
-            float pre_yAngle = prediction.at<float>(1);
+                //1-2
+                Mat prediction = KF.predict();
+                float pre_xAngle = prediction.at<float>(0);
+                float pre_yAngle = prediction.at<float>(1);
 
-            //3-4
-            measurement.at<float>(0) = (float)xAngle;
-            measurement.at<float>(1) = (float)yAngle;
+                //3-4
+                measurement.at<float>(0) = (float)xAngle;
+                measurement.at<float>(1) = (float)yAngle;
 
-            //5
-            KF.correct(measurement);
+                //5
+                KF.correct(measurement);
 
-            data.pitch_angle.f = pre_xAngle;
-            data.yaw_angle.f =  pre_yAngle;
-            cout<<pre_xAngle<<endl;
+                data.pitch_angle.f = pre_xAngle;
+                data.yaw_angle.f =  pre_yAngle;
+                data.dis.f = dis;
+//                cout<<dis<<endl;
+//                cout<<pre_xAngle<<endl;
 #else
-            data.pitch_angle.f = xAngle;
-            data.yaw_angle.f =  yAngle;
+                data.pitch_angle.f = xAngle;
+                data.yaw_angle.f =  yAngle;
+                data.dis.f = dis;
+
 #endif
-//            cout<<xAngle<<","<<yAngle<<endl;
+    //            cout<<xAngle<<","<<yAngle<<endl;
+            }
+            else
+            {
+                FirstPic = 1;
+                numofpic = 0;
+            }
+
         }
 
 #ifdef OPEN_SERIAL
@@ -155,17 +201,20 @@ void video::camera_read_write()
 //        t2 = getTickCount();
 //        double fps = (t2-t1)/getTickFrequency();
 //        cout<<"time:"<<fps<<endl;
-        int i = waitKey(30);
+        int i = waitKey(10);
         if( i=='q') break;
     }
 //    sp.Close();
     camera0.release();
 }
-
+#else
 void video::file_read()
 {
     find_armour f_armour(fs);
     VideoCapture camera0;
+
+    VisionData data = {0,0,0,0,0};
+    RotatedRect RRect;
 
     camera0.open(filename);
     if (!camera0.isOpened())
@@ -190,7 +239,7 @@ void video::file_read()
         Point XY;
         Mat dst = Mat::zeros(frame.size(), CV_8UC1);
 //        if(flag==1) dst = f_armour.find_blue1(frame,dst.clone());
-//        if(flag==2) dst = f_armour.find_blue3(frame,dst.clone(),XY,ismiddle,isfind);
+        if(mode==2) dst = f_armour.find_blue4(frame,dst.clone(),data,RRect);
 //        if(mode==2) dst = f_armour.find_blue4(frame,dst.clone(),data);
 //        if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
 //        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
@@ -200,9 +249,10 @@ void video::file_read()
         t2 = getTickCount();
 //        double fps = (t2-t1)/getTickFrequency()*1000;
 //        cout<<"time:"<<fps<<"ms"<<endl;
-        qDebug()<<"time:"<<time.elapsed()<<"ms";//输出计时
+//        qDebug()<<"time:"<<time.elapsed()<<"ms";//输出计时
 
-        int i = waitKey(10);
+        int i = waitKey(0);
         if( i=='q') break;
     }
 }
+#endif //VIDEO_DEBUG

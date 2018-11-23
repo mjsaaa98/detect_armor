@@ -50,7 +50,7 @@ public:
     void Camera2PTZ(const cv::Mat & pos, cv::Mat & transed_pos);
     void PTZ2Barrel(const cv::Mat & pos_in_ptz,double & angle_P,double & angle_Y,double speed_bullet);
 //    bool SolveAngle(const vector<Point2f>, double & angle_P, double & angle_Y, double speed_bullet, double current_ptz_angle, const cv::Point2f & offset);
-    bool Rotated_SolveAngle(const RotatedRect, double & angle_P, double & angle_Y, double speed_bullet, double current_ptz_angle, const cv::Point2f & offset);
+    bool Rotated_SolveAngle(const RotatedRect, double & angle_P, double & angle_Y, double &dis,  Mat& camera_location,double speed_bullet, double current_ptz_angle, const cv::Point2f & offset);
 
     //    void SetTargetSize();
 

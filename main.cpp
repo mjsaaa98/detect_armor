@@ -44,7 +44,7 @@ int main()
 string c1 ="bubing.avi";
 //    fs["select"]>>select;   //camera or video_file
 //    fs["flag"]>>flag;   //  which mode.
-#ifndef DEBUG
+#ifndef VIDEO_DEBUG
 //    video vd(0,c1,flag);
     video vd(0,c1);
     vd.camera_read_write();

@@ -22,6 +22,34 @@ find_armour::find_armour(FileStorage f)
 //-----------------------------------------------------------------------------------
 
 
+void Get_Rotated_param(double x1,double x2,double y1,double y2,double &Rotated_angle)
+{
+    cout<<x1<<x2<<y1<<y2<<endl;
+    if(x1<x2)
+    {
+        if(y1 == y2)
+        {
+            Rotated_angle = 0;
+        }
+        else
+        {
+            cout<<"in"<<endl;
+            Rotated_angle = atan((y2-y1)/(x2-x1))*180/3.14159;
+        }
+    }
+    else
+    {
+        if(y1 == y2)
+        {
+            Rotated_angle = 0;
+        }
+        else
+        {
+            Rotated_angle = atan((y1-y2)/(x1-x2))*180/3.14159;;
+        }
+    }
+cout<<Rotated_angle<<endl;
+}
 
 
 Mat find_armour::find_red2(Mat img,Mat dst)
@@ -827,10 +855,16 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect)
         {
             last_center = armour_center[0];
             last_d = diameters[0];
+            last_angle = Rotated_angles[0];
             if (last_angle<=0)
+            {
                 last_size = Size2f(last_d,Heights[0]);
+            }
             else
+            {
                 last_size = Size2f(Heights[0],last_d);
+                last_angle = last_angle-90;
+            }
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
             isfind = 1;
@@ -854,9 +888,14 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect)
             last_d = d1;
             last_angle = Rotated_angles[n];
             if (last_angle<=0)
+            {
                 last_size = Size2f(last_d,Heights[n]);
+            }
             else
+            {
                 last_size = Size2f(Heights[n],last_d);
+                last_angle = last_angle-90;
+            }
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
             isfind = 1;
@@ -889,10 +928,16 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect)
         {
             last_center = armour_center[0];
             last_d = diameters[0];
+            last_angle = Rotated_angles[0];
             if (last_angle<=0)
+            {
                 last_size = Size2f(last_d,Heights[0]);
+            }
             else
+            {
                 last_size = Size2f(Heights[0],last_d);
+                last_angle = last_angle-90;
+            }
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
             isfind = 1;
@@ -911,10 +956,16 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect)
             }
             last_center = armour_center[n];
             last_d = diameters[n];
+            last_angle = Rotated_angles[n];
             if (last_angle<=0)
+            {
                 last_size = Size2f(last_d,Heights[n]);
+            }
             else
+            {
                 last_size = Size2f(Heights[n],last_d);
+                last_angle = last_angle-90;
+            }
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             flags = 1;
             isfind = 1;
@@ -937,6 +988,7 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect)
 //    XY.push_back(xy3);
 //    XY.push_back(xy4);
     RRect = RotatedRect(last_center,last_size,last_angle);
+    cout<<last_angle<<endl;
     Mat vertice;
     boxPoints(RRect,vertice);
     for(int k = 0;k<4;k++)
@@ -1166,20 +1218,11 @@ void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,
                             (con_prams[i][2]+con_prams[j][2])*0.5);
                     armour_center.push_back(center);
 
-                    if (x1<x2)
-                    {
-                        double Rotated_angle = atan((y2-y1)/(x2-x1));
-                        Rotated_angles.push_back(Rotated_angle);
-                        double h = con_prams[i][0]>con_prams[j][0]?con_prams[i][0]:con_prams[j][0];
-                        Heights.push_back(h);
-                    }
-                    else
-                    {
-                        double Rotated_angle = atan((y2-y1)/(x1-x2));
-                        Rotated_angles.push_back(Rotated_angle);
-                        double h = con_prams[i][0]>con_prams[j][0]?con_prams[i][0]:con_prams[j][0];
-                        Heights.push_back(h);
-                    }
+                    double Rotated_angle = 0;
+                    Get_Rotated_param(x1,x2,y1,y2,Rotated_angle);
+                    Rotated_angles.push_back(Rotated_angle);
+                    double h = height1>height2?height1:height2;
+                    Heights.push_back(h);
                 }
             }
         }
@@ -1248,6 +1291,7 @@ void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,
 
                 double y_dist = abs(y2-y1);
 
+
                 // Y and Y 's distance must less wucha.and area's rate must bettwen min and max
                 if(y_dist<y_dist_wucha_ROI&&height_d<height_d_wucha_ROI)
                 {
@@ -1259,20 +1303,11 @@ void find_armour::search_armour(Mat img,Mat dst,vector<Point2f> & armour_center,
                     Point center=Point((con_prams[i][1]+con_prams[j][1])*0.5,
                             (con_prams[i][2]+con_prams[j][2])*0.5);
                     armour_center.push_back(center);
-                    if (x1<x2)
-                    {
-                        double Rotated_angle = atan((y2-y1)/(x2-x1));
-                        Rotated_angles.push_back(Rotated_angle);
-                        double h = con_prams[i][0]>con_prams[j][0]?con_prams[i][0]:con_prams[j][0];
-                        Heights.push_back(h);
-                    }
-                    else
-                    {
-                        double Rotated_angle = atan((y2-y1)/(x1-x2));
-                        Rotated_angles.push_back(Rotated_angle);
-                        double h = con_prams[i][0]>con_prams[j][0]?con_prams[i][0]:con_prams[j][0];
-                        Heights.push_back(h);
-                    }
+                    double Rotated_angle;
+                    Get_Rotated_param(x1,x2,y1,y2,Rotated_angle);
+                    Rotated_angles.push_back(Rotated_angle);
+                    double h = height1>height2?height1:height2;
+                    Heights.push_back(h);
                 }
             }
         }
