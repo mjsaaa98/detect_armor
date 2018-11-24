@@ -19,6 +19,12 @@
 
 using namespace std;
 using namespace cv;
+struct KFparam
+{
+    float last_time;
+    float last_xAngle;
+    float last_yAngle;
+};
 
 class video
 {
