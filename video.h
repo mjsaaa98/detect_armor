@@ -15,7 +15,7 @@
 //#define VIDEO_DEBUG   //使用视频测试
 //#define CAMERA_DEBUG   //不接受数据自己开相机测试
 #define KALMAN_OPEN     //打开卡尔曼
-#define OPEN_SERIAL     //打开串口
+//#define OPEN_SERIAL     //打开串口
 
 using namespace std;
 using namespace cv;
@@ -36,7 +36,6 @@ public:
 private:
     int n;   //open camera num
     string filename;
-//    int flag;   //select
     int mode;
 //    int ismiddle;
 //    int isfind;
