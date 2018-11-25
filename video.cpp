@@ -155,7 +155,7 @@ void video::camera_read_write()
                     t2 = getTickCount();
                     v = move_dis/((t2-t1)/getTickFrequency()*1000)*10;
                     pre_camera_location = now_camera_location.clone();
-                    if(v>1)                    cout<<v<<"m/s"<<endl;
+                    if(v>1) cout<<v<<"m/s"<<endl;
                 }
 //                cout<<"============"<<endl;
 //                cout<<xAngle<<endl;
@@ -176,8 +176,8 @@ void video::camera_read_write()
                 gemm(KF.transitionMatrix,KF.statePost,1,NULL,0,next_Angle);
 
             //发送预测的下一帧位置
-                data.pitch_angle.f = next_Angle.at<float>(0);
-                data.yaw_angle.f =  next_Angle.at<float>(1);
+                data.pitch_angle.f = (next_Angle.at<float>(0)-KF.statePost.at<float>(0))*5+KF.statePost.at<float>(0);
+                data.yaw_angle.f =  (next_Angle.at<float>(1)-KF.statePost.at<float>(1))*5+KF.statePost.at<float>(1);
 
             //发送本帧预测值
 //                data.pitch_angle.f = pre_xAngle;
