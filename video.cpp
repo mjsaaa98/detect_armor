@@ -1,23 +1,15 @@
 #include "video.h"
 #include <serialport.h>
-//用于定时打印信息的计数值
-int printflag = 0;
-//获取速度
 float GetSpeed(float angle,float last_angle,float t,float&v)
 {
     v = (angle - last_angle)/(t)*1000;
-    v = v>20?20:v;
-    v = v<-20?-20:v;
-    printflag++;
-    if(printflag==100)
-    {
-        cout<<"v"<<endl;
-        printflag = 0;
-    }
+    v = v>30?30:v;
+    v = v<-30?-30:v;
 }
 video::video(string c)
 {
     filename = c;
+//    flag = f;
 #ifdef CAMERA_DEBUG
     mode = 2;
 #else
@@ -37,10 +29,12 @@ video::video(int num,string c)
     mode = 0;
 #endif
     filename = c;
+//    flag = f;
 }
 
 #ifndef VIDEO_DEBUG
 //open camera and write .avi file.
+//
 void video::camera_read_write()
 {
 
@@ -55,16 +49,22 @@ void video::camera_read_write()
     Mat rot_martrix(3,3,CV_64FC1,rot_c);
     Mat tran_matrix(3,1,CV_64FC1,tran_c);
     ans.Relation_Camera_PTZ(rot_martrix,tran_matrix,0);
+
 #ifdef KALMAN_OPEN
     //kalman
+
     const int stateNum = 4;
     const int measureNum = 4;
     KalmanFilter KF(stateNum,measureNum);   //初始化
-    KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,0.01,0,0,1,0,0.01,0,0,1,0,0,0,0,1);
+
+    KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,0.001,0,0,1,0,0.001,0,0,1,0,0,0,0,1);
     setIdentity(KF.measurementMatrix);   //H
-    setIdentity(KF.processNoiseCov,Scalar(1));   //Q
-    KF.measurementNoiseCov = (Mat_<float>(4,4)<<2000,0,0,0,0,2000,0,0,0,0,5000,0,0,0,0,5000);//R
-    setIdentity(KF.errorCovPost,Scalar(1));//P
+//    setIdentity(KF.measurementNoiseCov,Scalar::all(1));  //R
+    setIdentity(KF.processNoiseCov,Scalar(1000));   //Q
+    KF.measurementNoiseCov = (Mat_<float>(4,4)<<2000,0,0,0,0,2000,0,0,0,0,5000,0,0,0,0,5000);
+//R
+    //P
+    setIdentity(KF.errorCovPost,Scalar(1));
     //x(k-1)
     KF.statePost = (Mat_<float>(4,1)<<1,1,1,1);
     //z
@@ -75,41 +75,39 @@ void video::camera_read_write()
     SerialPort sp;
     sp.initSerialPort();
 #endif
-    //初始化目标数据
     VisionData data = {0,0,0,0,0};
     RotatedRect RRect;
     find_armour f_armour(fs);
 
-    //打开摄像头
     VideoCapture camera0(0);
-    //设置摄像头分辨率为1280x720or640x480
+    //设置摄像头分辨率为1280x720
     camera0.set(CV_CAP_PROP_FRAME_WIDTH,640);
     camera0.set(CV_CAP_PROP_FRAME_HEIGHT,480);
-//    VideoWriter writer(filename, CV_FOURCC('M', 'J', 'P', 'G'), 10, Size(640, 480),true);
+    VideoWriter writer(filename, CV_FOURCC('M', 'J', 'P', 'G'), 10, Size(640, 480),true);
     if (!camera0.isOpened())
     {
         cout << "Failed!"<<endl;
     }
 
 
+
+//    int FirstPic = 1;
     float t=0;
     float last_time = 0;
     int numofpic = 0;
     Mat camera_location;
-//    Mat pre_camera_location;
-//    Mat now_camera_location;
-    //初始化x、y方向的速度
+    Mat pre_camera_location;
+    Mat now_camera_location;
     float vx=0,vy=0;
-    KFparam kp = {0,0,0};   //初始化卡尔曼参数结构体
-    //第一次找到的时刻、找到时现在的时刻、第一次没找到的时刻、没找到时现在的时刻。 主要用于400ms开预测和100ms消抖操作。
+    KFparam kp = {0,0,0};
     float firstfind_t = 0,nowfind_t = 0,firnotfind_t = 0,nownotfind_t = 0;
-    int isfirstfind = 1;   //是否第一次找到标帜位
-    int isfirnotfind = 1;   //是否第一次没找到标帜位
-    int isfind_flag = 0;    //是否找到标帜位
+    int isfirstfind = 1;
+    int isfirnotfind = 1;
+    int isfind_flag = 0;
     while (1)
     {
         t = getTickCount();
-        float delta_t = (t-last_time)/getTickFrequency()*1000;   //计算两帧之间的时间差
+        float delta_t = (t-last_time)/getTickFrequency()*1000;
         cout<<delta_t<<"ms"<<endl;
         last_time = t;
         Mat frame;
@@ -145,13 +143,12 @@ void video::camera_read_write()
 //        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
 //        if(mode==1) dst = f_armour.find_red4(frame,dst.clone(),XY,ismiddle,isfind);
 
-        isfind_flag = data.isfind;   //是否找到的标帜物位
-        double xAngle=0,yAngle=0,dis=0;  //初始化角度和距离
-
+//        cout<<isfind<<endl;
+        isfind_flag = data.isfind;
+        double xAngle=0,yAngle=0,dis=0;
 //        double last_xAngle = 0,last_yAngle = 0;
-//        double move_dis = 0;
-//        double v = 0;
-
+        double move_dis = 0;
+        double v = 0;
         if(mode == 0)
         {
             data.isfind = 0;
@@ -165,27 +162,33 @@ void video::camera_read_write()
                 nowfind_t = getTickCount();
                 if (isfirstfind == 1)
                 {
-                    isfirnotfind = 1;
                     firstfind_t = getTickCount();
                     isfirstfind = 0;
                 }
                 if((nowfind_t-firstfind_t)/getTickFrequency()*1000>=380)
                 {
 
-                    now_camera_location = camera_location.clone();
-                    double x1 = now_camera_location.at<double>(0,0);
-                    double x2 = pre_camera_location.at<double>(0,0);
-                    double y1 = now_camera_location.at<double>(1,0);
-                    double y2 = pre_camera_location.at<double>(1,0);
-                    double z1 = now_camera_location.at<double>(2,0);
-                    double z2 = pre_camera_location.at<double>(2,0);
-                    move_dis = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)+(z1-z2)*(z1-z2));
-                    t2 = getTickCount();
-                    v = move_dis/((t2-t1)/getTickFrequency()*1000)*10;
-                    pre_camera_location = now_camera_location.clone();
-                    if(v>1) cout<<v<<"m/s"<<endl;
-                }
-
+//                FirstPic = 0;
+//                numofpic++;
+//                if (numofpic==1)
+//                {
+//                    pre_camera_location = camera_location.clone();
+//                }
+//                else
+//                {
+//                    now_camera_location = camera_location.clone();
+//                    double x1 = now_camera_location.at<double>(0,0);
+//                    double x2 = pre_camera_location.at<double>(0,0);
+//                    double y1 = now_camera_location.at<double>(1,0);
+//                    double y2 = pre_camera_location.at<double>(1,0);
+//                    double z1 = now_camera_location.at<double>(2,0);
+//                    double z2 = pre_camera_location.at<double>(2,0);
+//                    move_dis = sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)+(z1-z2)*(z1-z2));
+////                    t2 = getTickCount();
+////                    v = move_dis/((t2-t1)/getTickFrequency()*1000)*10;
+//                    pre_camera_location = now_camera_location.clone();
+////                    if(v>1)                    cout<<v<<"m/s"<<endl;
+//                }
 //                cout<<"============"<<endl;
 //                cout<<xAngle<<endl;
 #ifdef KALMAN_OPEN
@@ -208,14 +211,14 @@ void video::camera_read_write()
                     //5
                     KF.correct(measurement);
                     //预测下一帧的位置
-    //                Mat next_Angle;   //下一帧的角度
-    //                gemm(KF.transitionMatrix,KF.statePost,1,NULL,0,next_Angle);
+                    Mat next_Angle;   //下一帧的角度
+                    gemm(KF.transitionMatrix,KF.statePost,1,NULL,0,next_Angle);
 
-            //发送预测的下一帧位置
-                data.pitch_angle.f = (next_Angle.at<float>(0)-KF.statePost.at<float>(0))*5+KF.statePost.at<float>(0);
-                data.yaw_angle.f =  (next_Angle.at<float>(1)-KF.statePost.at<float>(1))*5+KF.statePost.at<float>(1);
-
-
+                //发送预测的下一帧位置
+//                    data.pitch_angle.f = pre_xAngle+vx*delta_t/100;
+//                    data.yaw_angle.f =  pre_yAngle+vy*delta_t/100;
+                    data.pitch_angle.f = (next_Angle.at<float>(0)-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
+                    data.yaw_angle.f =  (next_Angle.at<float>(1)-KF.statePost.at<float>(1))*10+KF.statePost.at<float>(1);
                 //发送本帧预测值
     //                data.pitch_angle.f = pre_xAngle;
     //                data.yaw_angle.f =  pre_yAngle;
@@ -245,8 +248,6 @@ void video::camera_read_write()
                 }
                 if ((nownotfind_t-firnotfind_t)/getTickFrequency()*1000<100)
                 {
-                    data.pitch_angle.f = 0;
-                    data.yaw_angle.f = 0;
                     data.isfind = 1;
                 }
                 else
