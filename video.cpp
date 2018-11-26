@@ -61,6 +61,22 @@ void video::camera_read_write()
 //    cout<<KF.statePost<<endl;
     Mat measurement = Mat::zeros(measureNum,1,CV_32F);
 #endif
+
+#ifdef KALMAN_2
+    const int stateNum2 = 2;
+    const int measureNum2 = 1;
+    KalmanFilter KF2(stateNum2,measureNum2);   //初始化
+
+    KF2.transitionMatrix = (Mat_<float>(2,2)<<1,1,0,1);
+    setIdentity(KF2.measurementMatrix);
+    setIdentity(KF2.measurementNoiseCov,Scalar::all(1));  //R
+    setIdentity(KF2.processNoiseCov,Scalar(10e-3));   //Q
+    setIdentity(KF2.errorCovPost,Scalar(10e-2));
+    KF2.statePost = (Mat_<float>(2,1)<<1,1);
+//    cout<<KF.statePost<<endl;
+    Mat measurement2 = Mat::zeros(measureNum,1,CV_32F);
+#endif
+
     //各个类的初始化
 #ifdef OPEN_SERIAL
     SerialPort sp;
@@ -176,7 +192,7 @@ void video::camera_read_write()
                 gemm(KF.transitionMatrix,KF.statePost,1,NULL,0,next_Angle);
 
             //发送预测的下一帧位置
-                data.pitch_angle.f = next_Angle.at<float>(0);
+                data.pitch_angle.f = (next_Angle.at<float>(0)-KF.statePost.at<float>(0))*500+KF.statePost.at<float>(0);
                 data.yaw_angle.f =  next_Angle.at<float>(1);
 
             //发送本帧预测值
@@ -189,6 +205,18 @@ void video::camera_read_write()
                 data.pitch_angle.f = xAngle;
                 data.yaw_angle.f =  yAngle;
                 data.dis.f = dis;
+#endif
+#ifdef KALMAN_2
+                Mat prediction2 = KF2.predict();
+//                float pre_xAngle = prediction.at<float>(0);
+//                float pre_yAngle = prediction.at<float>(1);
+
+                //3-4
+                measurement2.at<float>(0) = data.pitch_angle.f;
+
+                //5
+                KF2.correct(measurement);
+                data.pitch_angle.f = KF.statePost.at<float>(0);
 #endif
     //            cout<<xAngle<<","<<yAngle<<endl;
             }
