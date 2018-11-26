@@ -20,6 +20,12 @@
 
 using namespace std;
 using namespace cv;
+struct KFparam
+{
+    float last_time;
+    float last_xAngle;
+    float last_yAngle;
+};
 
 class video
 {
@@ -31,7 +37,6 @@ public:
 private:
     int n;   //open camera num
     string filename;
-//    int flag;   //select
     int mode;
 //    int ismiddle;
 //    int isfind;

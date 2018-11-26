@@ -53,6 +53,7 @@ void SerialPort::get_Mode(int &mode){
         //判断针头和CRC校验是否正确
         mode  = (int)rdata[1];
 //        cout<<"mode"<<mode<<endl;
+        if(mode = 0)
         printf("receive mode:%d\r\n",mode);
 
     }
