@@ -54,14 +54,14 @@ void video::camera_read_write()
     //kalman
 
     const int stateNum = 4;
-    const int measureNum = 4;
+    const int measureNum = 2;
     KalmanFilter KF(stateNum,measureNum);   //初始化
 
-    KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,0.001,0,0,1,0,0.001,0,0,1,0,0,0,0,1);
+    KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,1,0,0,1,0,1,0,0,1,0,0,0,0,1);
     setIdentity(KF.measurementMatrix);   //H
-//    setIdentity(KF.measurementNoiseCov,Scalar::all(1));  //R
-    setIdentity(KF.processNoiseCov,Scalar(1000));   //Q
-    KF.measurementNoiseCov = (Mat_<float>(4,4)<<2000,0,0,0,0,2000,0,0,0,0,5000,0,0,0,0,5000);
+    setIdentity(KF.measurementNoiseCov,Scalar::all(2000));  //R
+    setIdentity(KF.processNoiseCov,Scalar(1));   //Q
+//    KF.measurementNoiseCov = (Mat_<float>(4,4)<<2000,0,0,0,0,2000,0,0,0,0,5000,0,0,0,0,5000);
 //R
     //P
     setIdentity(KF.errorCovPost,Scalar(1));
@@ -80,12 +80,10 @@ void video::camera_read_write()
     setIdentity(KF2.measurementMatrix);
     setIdentity(KF2.measurementNoiseCov,Scalar::all(1));  //R
     setIdentity(KF2.processNoiseCov,Scalar(10e-3));   //Q
-    setIdentity(KF2.errorCovPost,Scalar(10e-2));
+    setIdentity(KF2.errorCovPost,Scalar(1));
     KF2.statePost = (Mat_<float>(2,1)<<1,1);
-//    cout<<KF.statePost<<endl;
-    Mat measurement2 = Mat::zeros(measureNum,1,CV_32F);
+    Mat measurement2 = Mat::zeros(measureNum2,1,CV_32F);
 #endif
-
     //各个类的初始化
 #ifdef OPEN_SERIAL
     SerialPort sp;
@@ -105,20 +103,16 @@ void video::camera_read_write()
         cout << "Failed!"<<endl;
     }
 
-
-
 //    int FirstPic = 1;
     float t=0;
     float last_time = 0;
     int numofpic = 0;
     Mat camera_location;
-    Mat pre_camera_location;
-    Mat now_camera_location;
     float vx=0,vy=0;
     KFparam kp = {0,0,0};
     float firstfind_t = 0,nowfind_t = 0,firnotfind_t = 0,nownotfind_t = 0;
     int isfirstfind = 1;
-    int isfirnotfind = 1;
+    int isfirnotfind = 0;
     int isfind_flag = 0;
     while (1)
     {
@@ -159,28 +153,28 @@ void video::camera_read_write()
 //        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
 //        if(mode==1) dst = f_armour.find_red4(frame,dst.clone(),XY,ismiddle,isfind);
 
-//        cout<<isfind<<endl;
         isfind_flag = data.isfind;
         double xAngle=0,yAngle=0,dis=0;
-//        double last_xAngle = 0,last_yAngle = 0;
-        double move_dis = 0;
         double v = 0;
         if(mode == 0)
         {
             data.isfind = 0;
             isfirstfind = 1;
+            isfirnotfind = 0;
 
         }
         else if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,dis,camera_location,20,0,Point2f(0,0)))
         {
             if(isfind_flag!= 0)
             {
-                nowfind_t = getTickCount();
                 if (isfirstfind == 1)
                 {
                     firstfind_t = getTickCount();
                     isfirstfind = 0;
+                    isfirnotfind = 1;
                 }
+                nowfind_t = getTickCount();
+                //380ms后再开预测
                 if((nowfind_t-firstfind_t)/getTickFrequency()*1000>=380)
                 {
 
@@ -210,65 +204,65 @@ void video::camera_read_write()
 #ifdef KALMAN_OPEN
                     //1-2
                     Mat prediction = KF.predict();
-                    float pre_xAngle = prediction.at<float>(0);
-                    float pre_yAngle = prediction.at<float>(1);
+//                    float pre_xAngle = prediction.at<float>(0);
+//                    float pre_yAngle = prediction.at<float>(1);
 
-                    //get speed
-                    GetSpeed(pre_xAngle,kp.last_xAngle,delta_t,vx);
-                    kp.last_xAngle = pre_xAngle;
-                    GetSpeed(pre_yAngle,kp.last_yAngle,delta_t,vy);
-                    kp.last_yAngle = pre_yAngle;
+//                    //get speed
+//                    GetSpeed(pre_xAngle,kp.last_xAngle,delta_t,vx);
+//                    kp.last_xAngle = pre_xAngle;
+//                    GetSpeed(pre_yAngle,kp.last_yAngle,delta_t,vy);
+//                    kp.last_yAngle = pre_yAngle;
                     //3-4
                     measurement.at<float>(0) = (float)xAngle;
                     measurement.at<float>(1) = (float)yAngle;
-                    measurement.at<float>(2) = vx;
-                    measurement.at<float>(3) = vy;
-            //发送预测的下一帧位置
-                data.pitch_angle.f = (next_Angle.at<float>(0)-KF.statePost.at<float>(0))*500+KF.statePost.at<float>(0);
-                data.yaw_angle.f =  next_Angle.at<float>(1);
 
-            //发送本帧预测值
-//                data.pitch_angle.f = pre_xAngle;
-//                data.yaw_angle.f =  pre_yAngle;
-                data.dis.f = dis;
-//                cout<<dis<<endl;
-//                cout<<pre_xAngle<<endl;
+                    Mat next_Angle;
+                    gemm(KF.transitionMatrix,KF.statePost,1,NULL,0,next_Angle);
+                //发送预测的下一帧位置
+                    data.pitch_angle.f = (next_Angle.at<float>(0)-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
+                    data.yaw_angle.f =  next_Angle.at<float>(1);
+                    data.dis.f = dis;
 #else
-                data.pitch_angle.f = xAngle;
-                data.yaw_angle.f =  yAngle;
-                data.dis.f = dis;
+                    data.pitch_angle.f = xAngle;
+                    data.yaw_angle.f =  yAngle;
+                    data.dis.f = dis;
 #endif
 #ifdef KALMAN_2
-                Mat prediction2 = KF2.predict();
-//                float pre_xAngle = prediction.at<float>(0);
-//                float pre_yAngle = prediction.at<float>(1);
+                    Mat prediction2 = KF2.predict();
+                    //3-4
+                    measurement2.at<float>(0) = data.pitch_angle.f;
 
-                //3-4
-                measurement2.at<float>(0) = data.pitch_angle.f;
-
-                //5
-                KF2.correct(measurement);
-                data.pitch_angle.f = KF.statePost.at<float>(0);
+                    //5
+                    KF2.correct(measurement2);
+                    data.pitch_angle.f = KF2.statePost.at<float>(0);
 #endif
-    //            cout<<xAngle<<","<<yAngle<<endl;
-
+                }
+                else
+                {
+                    data.pitch_angle.f = xAngle;
+                    data.yaw_angle.f =  yAngle;
+                    data.dis.f = dis;
+                }
             }
             else
             {
-                nownotfind_t = getTickCount();
                 if(isfirnotfind == 1)
                 {
                     firnotfind_t = getTickCount();
                     isfirnotfind = 0;
                 }
-                if ((nownotfind_t-firnotfind_t)/getTickFrequency()*1000<100)
+                nownotfind_t = getTickCount();
+                if ((nownotfind_t-firnotfind_t)/getTickFrequency()*1000<100&&firnotfind_t!=0)
                 {
                     data.isfind = 1;
+                    data.pitch_angle.f = 0;
+                    data.yaw_angle.f = 0;
                 }
                 else
                 {
                     numofpic = 0;
                     isfirstfind = 1;
+                    firnotfind_t = 0;
                 }
             }
         }
@@ -276,14 +270,13 @@ void video::camera_read_write()
 #ifdef OPEN_SERIAL
         sp.TransformData(data);
 #endif
-
 //        t2 = getTickCount();
 //        double fps = (t2-t1)/getTickFrequency();
 //        cout<<"time:"<<fps<<endl;
         int i = waitKey(1);
         if( i=='q') break;
     }
-//    sp.Close();
+    sp.Close();
     camera0.release();
 }
 #else
