@@ -35,11 +35,35 @@ SerialPort::SerialPort(char *portpath)
 }
 
 ////////////////////////////////////////////////////////////////
+///**
+// *@brief   获取模式命令
+// */
+
+//void SerialPort::get_Mode(int &mode,int pitch_angle,float){
+//    int bytes;
+//    ioctl(fd, FIONREAD, &bytes);
+
+//    if(bytes == 0) return;
+////    else  cout<<"buff:"<<bytes<<endl;
+//    bytes = read(fd,rdata,22);
+////    cout<<"0:"<<int(rdata[0])<<endl;
+////    cout<<"22:"<<int(rdata[21])<<endl;
+////    timerlast = (double)cv::getTickCount();
+//    if(rdata[0] == 0xA5 && Verify_CRC8_Check_Sum(rdata,3)){
+//        //判断针头和CRC校验是否正确
+//        mode  = (int)rdata[1];
+//        if(mode = 0)
+//        printf("receive mode:%d\r\n",mode);
+
+//    }
+//}
+
+
 /**
- *@brief   获取模式命令
+ *@brief   获取模式命令和当前陀螺仪角度
  */
 
-void SerialPort::get_Mode(int &mode){
+void SerialPort::get_Mode(int &mode, VisionData &data){
     int bytes;
     ioctl(fd, FIONREAD, &bytes);
 
@@ -52,9 +76,26 @@ void SerialPort::get_Mode(int &mode){
     if(rdata[0] == 0xA5 && Verify_CRC8_Check_Sum(rdata,3)){
         //判断针头和CRC校验是否正确
         mode  = (int)rdata[1];
-//        cout<<"mode"<<mode<<endl;
+
+        data.pitch_angle.c[0] = rdata[3];
+
+        data.pitch_angle.c[1] = rdata[4];
+
+        data.pitch_angle.c[2] = rdata[5];
+
+        data.pitch_angle.c[3] = rdata[6];
+
+        data.yaw_angle.c[0] = rdata[7];
+
+        data.yaw_angle.c[1] = rdata[8];
+
+        data.yaw_angle.c[2] = rdata[9];
+
+        data.yaw_angle.c[3] = rdata[10];
         if(mode = 0)
-        printf("receive mode:%d\r\n",mode);
+        {
+            printf("receive mode:%d\r\n",mode);
+        }
 
     }
 }
