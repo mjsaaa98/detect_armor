@@ -219,8 +219,8 @@ void video::camera_read_write()
                     Mat next_Angle;
                     gemm(KF.transitionMatrix,KF.statePost,1,NULL,0,next_Angle);
                 //发送预测的下一帧位置
-                    data.pitch_angle.f = (next_Angle.at<float>(0)-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
-                    data.yaw_angle.f =  next_Angle.at<float>(1);
+                    data.pitch_angle.f = next_Angle.at<float>(0);//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
+                    data.yaw_angle.f =  (next_Angle.at<float>(1)-KF.statePost.at<float>(1))*10+KF.statePost.at<float>(1);
                     data.dis.f = dis;
 #else
                     data.pitch_angle.f = xAngle;
@@ -230,7 +230,7 @@ void video::camera_read_write()
 #ifdef KALMAN_2
                     Mat prediction2 = KF2.predict();
                     //3-4
-                    measurement2.at<float>(0) = data.pitch_angle.f;
+                    measurement2.at<float>(0) = data.yaw_angle.f;
 
                     //5
                     KF2.correct(measurement2);
