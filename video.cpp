@@ -34,7 +34,6 @@ video::video(int num,string c)
 
 #ifndef VIDEO_DEBUG
 //open camera and write .avi file.
-
 //void video::camera_read_write()
 //{
 
@@ -277,7 +276,7 @@ void video::camera_read_write()
     KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,0.001,0,0,1,0,0.001,0,0,1,0,0,0,0,1);
     setIdentity(KF.measurementMatrix);   //H
 //    setIdentity(KF.measurementNoiseCov,Scalar::all(1));  //R
-    setIdentity(KF.processNoiseCov,Scalar(1000));   //Q
+    setIdentity(KF.processNoiseCov,Scalar(1));   //Q
     //R
     KF.measurementNoiseCov = (Mat_<float>(4,4)<<2000,0,0,0,0,2000,0,0,0,0,5000,0,0,0,0,5000);
     //P
@@ -287,7 +286,6 @@ void video::camera_read_write()
     //z
 Mat measurement = Mat::zeros(measureNum,1,CV_32F);
 #endif
-
 #ifdef KALMAN_2
     const int stateNum2 = 2;
     const int measureNum2 = 1;
@@ -314,10 +312,15 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
     find_armour f_armour(fs);
 
     VideoCapture camera0(0);
+#ifdef F640
     //设置摄像头分辨率为1280x720
     camera0.set(CV_CAP_PROP_FRAME_WIDTH,640);
     camera0.set(CV_CAP_PROP_FRAME_HEIGHT,480);
-    VideoWriter writer(filename, CV_FOURCC('M', 'J', 'P', 'G'), 10, Size(640, 480),true);
+#else
+    camera0.set(CV_CAP_PROP_FRAME_WIDTH,1280);
+    camera0.set(CV_CAP_PROP_FRAME_HEIGHT,720);
+#endif
+//    VideoWriter writer(filename, CV_FOURCC('M', 'J', 'P', 'G'), 10, Size(640, 480),true);
     if (!camera0.isOpened())
     {
         cout << "Failed!"<<endl;
@@ -336,6 +339,8 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
     int isfind_flag = 0;
     int isreceiveflag = 0;   //是否接收到数据
     vector<float> history_yaw_offset;
+    last_time = getTickCount();
+    int num = 0;
     while (1)
     {
         t = getTickCount();
@@ -343,8 +348,6 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
 //        cout<<delta_t<<"ms"<<endl;
         last_time = t;
         Mat frame;
-//        double t1=0,t2=0;
-//        t1 = getTickCount();
         camera0 >> frame;
         if (frame.empty()) break;
 //        writer<<frame;
@@ -363,17 +366,18 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
 
         isfind_flag = data.isfind;
         double xAngle=0,yAngle=0,dis=0;
-        double v = 0;
         if(mode == 0)
         {
             data.isfind = 0;
+            data.pitch_angle.f = 0;
+            data.yaw_angle.f = 0;
             isfirstfind = 1;
             isfirnotfind = 0;
 
         }
-        else if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,dis,camera_location,20,0,Point2f(0,0)))
+        else if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,dis,camera_location,20,0,Point2f(0,0)))  //结算角度
         {
-            if(isfind_flag!= 0)
+            if(isfind_flag == 1)
             {
                 if (isreceiveflag == 1)
                 {
@@ -387,8 +391,9 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
                     isfirnotfind = 1;
                 }
                 nowfind_t = getTickCount();
-                //380ms后再开预测
-                if((nowfind_t-firstfind_t)/getTickFrequency()*1000>=380)
+//                //380ms后再开预测
+//                if((nowfind_t-firstfind_t)/getTickFrequency()*1000>=380)
+                if(1)
                 {
                     if(num<=2)
                     {
@@ -423,9 +428,10 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
                     //5
                     KF.correct(measurement);
 
-                    data.pitch_angle.f = (KF.statePost.at<float>(0)-pitch_current);//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
-                    data.yaw_angle.f = (KF.statePost.at<float>(1) - yaw_current)+vy*delta_t/100;
+                    data.pitch_angle.f = xAngle;//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
+                    data.yaw_angle.f = (KF.statePost.at<float>(1) - yaw_current)+KF.statePost.at<float>(4)*delta_t/1000;
                     data.dis.f = yAngle;
+                    history_yaw_offset.push_back(data.yaw_angle.f);
 #else
                     data.pitch_angle.f = xAngle;
                     data.yaw_angle.f =  yAngle;
@@ -444,10 +450,6 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
                 }
                 else
                 {
-                    pitch_last = receive_data.pitch_angle.f;
-                    yaw_last = receive_data.yaw_angle.f;
-                    kp.last_xAngle = xAngle+pitch_last;
-                    kp.last_yAngle = yaw_last+yAngle;
                     data.pitch_angle.f = xAngle;
                     data.yaw_angle.f =  yAngle;
                     data.dis.f = dis;
@@ -461,17 +463,20 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
                     isfirnotfind = 0;
                 }
                 nownotfind_t = getTickCount();
-                if ((nownotfind_t-firnotfind_t)/getTickFrequency()*1000<100&&firnotfind_t!=0)
-                {
-                    data.isfind = 1;
-                    data.pitch_angle.f = 0;
-                    data.yaw_angle.f = 0;
-                }
+//                if ((nownotfind_t-firnotfind_t)/getTickFrequency()*1000<100&&firnotfind_t!=0)
+//                {
+//                    data.isfind = 1;
+//                    data.pitch_angle.f = 0;
+//                    data.yaw_angle.f = 0;
+//                }
+                if(0) ;
                 else
                 {
                     numofpic = 0;
                     isfirstfind = 1;
                     firnotfind_t = 0;
+                    data.pitch_angle.f = 0;
+                    data.yaw_angle.f = 0;
                 }
             }
         }
@@ -488,7 +493,7 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
     sp.Close();
     camera0.release();
 }
-
+#else
 //void video::camera_read_write()
 //{
 
@@ -730,7 +735,7 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
 //    sp.Close();
 //    camera0.release();
 //}
-#else
+//#else
 void video::file_read()
 {
     find_armour f_armour(fs);
