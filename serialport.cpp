@@ -63,7 +63,7 @@ SerialPort::SerialPort(char *portpath)
  *@brief   获取模式命令和当前陀螺仪角度
  */
 
-void SerialPort::get_Mode(int &mode, VisionData &data){
+void SerialPort::get_Mode(int &mode, VisionData &data,int &flag){
     int bytes;
     ioctl(fd, FIONREAD, &bytes);
 
@@ -92,10 +92,11 @@ void SerialPort::get_Mode(int &mode, VisionData &data){
         data.yaw_angle.c[2] = rdata[9];
 
         data.yaw_angle.c[3] = rdata[10];
-        if(mode = 0)
-        {
-            printf("receive mode:%d\r\n",mode);
-        }
+
+        flag = 1;
+
+        printf("receive mode:%d\r\n",mode);
+
 
     }
 }
