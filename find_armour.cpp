@@ -1,6 +1,15 @@
 #include "find_armour.h"
 #include "get_colors.h"
 #include "send_location.h"
+
+float GetSpeedXY(float angle,float last_angle,float t,float&v)
+{
+    v = (angle - last_angle)/(t)*1000;
+    v = v>30?30:v;
+    v = v<-30?-30:v;
+    cout<<v<<"m/s"<<endl;
+}
+
 find_armour::find_armour(FileStorage f)
 {
     fs = f;
@@ -797,7 +806,7 @@ Mat find_armour::find_blue3(Mat img,Mat dst,Point& XY,int& ismiddle,int& isfind)
 
 
 
-Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect)
+Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect,float delta_t)
 {
 
     /* 在Blue3的基础上，把寻找装甲板的方法写成一个函数search_armour().接着根据装甲板的数量进行不同的操作
@@ -828,6 +837,8 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect)
     vector<Point2f> XY;
 
     static Point2f last_center;
+
+    static Point2f last_center_XY;
 
     static Mat dstROI;
 
@@ -987,6 +998,44 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect)
 //    XY.push_back(xy2);
 //    XY.push_back(xy3);
 //    XY.push_back(xy4);
+#ifdef KALMANXY_OPEN
+    float vx=0,vy=0;
+    const int stateNum = 4;
+    const int measureNum = 4;
+    KalmanFilter KF(stateNum,measureNum);   //初始化
+
+    KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,0.01,0,0,1,0,0.01,0,0,1,0,0,0,0,1);
+    setIdentity(KF.measurementMatrix);   //H
+//    setIdentity(KF.measurementNoiseCov,Scalar::all(1));  //R
+    setIdentity(KF.processNoiseCov,Scalar(1000));   //Q
+    //R
+    KF.measurementNoiseCov = (Mat_<float>(4,4)<<2000,0,0,0,0,2000,0,0,0,0,5000,0,0,0,0,5000);
+    //P
+    setIdentity(KF.errorCovPost,Scalar(1));
+    //x(k-1)
+    KF.statePost = (Mat_<float>(4,1)<<1,1,1,1);
+    //z
+    Mat measurement = Mat::zeros(measureNum,1,CV_32F);
+    //1-2
+    Mat prediction = KF.predict();
+    float pre_x = prediction.at<float>(0);
+    float pre_y = prediction.at<float>(1);
+
+    //get speed
+    GetSpeedXY(last_center.x,last_center_XY.x,delta_t,vx);
+    GetSpeedXY(last_center.y,last_center_XY.y,delta_t,vy);
+    last_center_XY = last_center;  //保存上一帧坐标
+    //3-4
+    measurement.at<float>(0) = last_center.x;
+    measurement.at<float>(1) = last_center.y;
+    measurement.at<float>(2) = vx;
+    measurement.at<float>(3) = vy;
+    //5
+    KF.correct(measurement);
+
+    last_center.x = pre_x+KF.statePost.at<float>(2)*delta_t/1000;
+    last_center.y = pre_y+KF.statePost.at<float>(3)*delta_t/1000;
+#endif
     RRect = RotatedRect(last_center,last_size,last_angle);
     cout<<last_angle<<endl;
     Mat vertice;
@@ -1004,7 +1053,6 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect)
 //    data = {last_center.x,last_center.y,0,ismiddle,isfind};    //发送坐标
     data = {0,0,0,ismiddle,isfind};
     imshow("find",img);
-
     return dst;
 }
 
