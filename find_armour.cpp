@@ -998,6 +998,7 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect,f
 //    XY.push_back(xy2);
 //    XY.push_back(xy3);
 //    XY.push_back(xy4);
+    Point2f c = last_center;
 #ifdef KALMANXY_OPEN
     float vx=0,vy=0;
     const int stateNum = 4;
@@ -1024,7 +1025,7 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect,f
     //get speed
     GetSpeedXY(last_center.x,last_center_XY.x,delta_t,vx);
     GetSpeedXY(last_center.y,last_center_XY.y,delta_t,vy);
-    last_center_XY = last_center;  //保存上一帧坐标
+    last_center_XY = last_center;
     //3-4
     measurement.at<float>(0) = last_center.x;
     measurement.at<float>(1) = last_center.y;
@@ -1033,10 +1034,10 @@ Mat find_armour::find_blue4(Mat img,Mat dst,VisionData &data,RotatedRect&RRect,f
     //5
     KF.correct(measurement);
 
-    last_center.x = pre_x+KF.statePost.at<float>(2)*delta_t/1000;
-    last_center.y = pre_y+KF.statePost.at<float>(3)*delta_t/1000;
+    c.x = pre_x+KF.statePost.at<float>(2)*delta_t/1000;
+    c.y = pre_y+KF.statePost.at<float>(3)*delta_t/1000;
 #endif
-    RRect = RotatedRect(last_center,last_size,last_angle);
+    RRect = RotatedRect(c,last_size,last_angle);
     cout<<last_angle<<endl;
     Mat vertice;
     boxPoints(RRect,vertice);
