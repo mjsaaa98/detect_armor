@@ -18,7 +18,7 @@
 //#define KALMAN_2    //进行第二次卡尔曼
 #define OPEN_SERIAL     //打开串口
 //#define F640
-
+#define SHOW_DEBUG   //调试时显示数据
 using namespace std;
 using namespace cv;
 struct KFparam
