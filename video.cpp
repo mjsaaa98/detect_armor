@@ -123,25 +123,21 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
     while (1)
     {
         t = getTickCount();
-        float delta_t = (t-last_time)/getTickFrequency()*1000;
-//        cout<<delta_t<<"ms"<<endl;
+        float delta_t = (t-last_time)/getTickFrequency()*1000;   //获取两帧之间的时间差
         last_time = t;
+//        cout<<delta_t<<"ms"<<endl;
         Mat frame;
         camera0 >> frame;
         if (frame.empty()) break;
-//        writer<<frame;
+//        writer<<frame;     //写入视频文件
         imshow("src",frame);
 
         Mat dst = Mat::zeros(frame.size(), CV_8UC1);
 #ifdef OPEN_SERIAL
         sp.get_Mode(mode,receive_data,isreceiveflag);
 #endif
-//        if(flag==2) dst = f_armour.find_blue1(frame,dst.clone());
-//        if(mode==3) dst = f_armour.find_blue3(frame,dst.clone(),XY,ismiddle,isfind);
+
         if(mode==2) dst = f_armour.find_blue4(frame,dst.clone(),data,RRect,delta_t);
-//        if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
-//        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
-//        if(mode==1) dst = f_armour.find_red4(frame,dst.clone(),XY,ismiddle,isfind);
 
         double xAngle=0,yAngle=0,dis=0;
         if(mode == 0)
@@ -154,6 +150,7 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
             history_yaw_offset.clear();
             history_yaw_offset.push_back(0);
             history_yaw_offset.push_back(0);
+            num = 0;
 
         }
         else if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,dis,camera_location,20,0,Point2f(0,0)))  //结算角度
@@ -175,10 +172,10 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
 //                if((nowfind_t-firstfind_t)/getTickFrequency()*1000>=380)
                 if(1)
                 {
-                        receive_data.yaw_angle.f = receive_data.yaw_angle.f+history_yaw_offset[0];
-                        pitch_current = receive_data.pitch_angle.f;
-                        yaw_current = receive_data.yaw_angle.f;
-                        history_yaw_offset.erase(history_yaw_offset.begin());
+//                    receive_data.yaw_angle.f = receive_data.yaw_angle.f+history_yaw_offset[0];
+//                    pitch_current = receive_data.pitch_angle.f;
+//                    yaw_current = receive_data.yaw_angle.f;
+//                    history_yaw_offset.erase(history_yaw_offset.begin());
 #ifdef KALMAN_OPEN
                     //1-2
                     Mat prediction = KF.predict();
@@ -186,23 +183,38 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
                     float pre_yAngle = prediction.at<float>(1);
 
                     //get speed
-                    GetSpeed(pitch_current+pre_xAngle,kp.last_xAngle,delta_t,vx);
-                    kp.last_xAngle =pitch_current+ pre_xAngle;
+                    GetSpeed(pre_xAngle,kp.last_xAngle,delta_t,vx);
+                    kp.last_xAngle = pre_xAngle;
                     GetSpeed(yaw_current+pre_yAngle,kp.last_yAngle,delta_t,vy);
                     kp.last_yAngle = yaw_current+pre_yAngle;
+//                    GetSpeed(pitch_current+pre_xAngle,kp.last_xAngle,delta_t,vx);
+//                    kp.last_xAngle =pitch_current+ pre_xAngle;
+//                    GetSpeed(yaw_current+pre_yAngle,kp.last_yAngle,delta_t,vy);
+//                    kp.last_yAngle = yaw_current+pre_yAngle;
 
                     //3-4
                     measurement.at<float>(0) = (float)xAngle;
-                    measurement.at<float>(1) = (float)yAngle;
+                    measurement.at<float>(1) = (float)yAngle+history_yaw_offset[0];
                     measurement.at<float>(2) = vx;
                     measurement.at<float>(3) = vy;
                     //5
                     KF.correct(measurement);
 
-                    data.pitch_angle.f = xAngle;//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
-                    data.yaw_angle.f = pre_yAngle+KF.statePost.at<float>(4)*delta_t/1000;
-                    data.dis.f = yAngle;
+                    if(num>=10)
+                    {
+                        data.pitch_angle.f = xAngle;//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
+                        data.yaw_angle.f = KF.statePost.at<float>(1)-history_yaw_offset[0]+KF.statePost.at<float>(3)*delta_t/1000;
+                        data.dis.f = yAngle;
+                    }
+                    else
+                    {
+                        data.pitch_angle.f = xAngle;//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
+                        data.yaw_angle.f = yAngle;
+                        data.dis.f = yAngle;
+                    }
+                    history_yaw_offset.erase(history_yaw_offset.begin());
                     history_yaw_offset.push_back(data.yaw_angle.f);
+                    num++;
 #else
                     data.pitch_angle.f = xAngle;
                     data.yaw_angle.f =  yAngle;
@@ -251,6 +263,7 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
                 history_yaw_offset.clear();
                 history_yaw_offset.push_back(0);
                 history_yaw_offset.push_back(0);
+                num = 0;
             }
         }
 

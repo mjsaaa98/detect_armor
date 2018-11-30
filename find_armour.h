@@ -8,7 +8,7 @@
 
 #include "serialport.h"
 
-#define KALMANXY_OPEN
+//#define KALMANXY_OPEN
 using namespace cv;
 using namespace std;
 extern FileStorage fs;
