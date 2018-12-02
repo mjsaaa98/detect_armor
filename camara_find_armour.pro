@@ -12,7 +12,6 @@ SOURCES += main.cpp \
     v4l2_set.cpp \
     get_colors.cpp \
     find_armour.cpp \
-    send_location.cpp \
     serialport.cpp \
     CRC_Check.cpp \
     anglesolve.cpp
@@ -33,7 +32,6 @@ HEADERS += \
     v4l2_set.h \
     get_colors.h \
     find_armour.h \
-    send_location.h \
     serialport.h \
     CRC_Check.h \
     anglesolve.h

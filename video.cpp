@@ -137,9 +137,7 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
         sp.get_Mode(mode,receive_data,isreceiveflag);
 #endif
 
-        if(mode==2) dst = f_armour.find_blue4(frame,dst.clone(),data,RRect,delta_t);
-
-        double xAngle=0,yAngle=0,dis=0;
+        data.isfind = f_armour.isfind;
         if(mode == 0)
         {
             data.isfind = 0;
@@ -147,15 +145,19 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
             data.yaw_angle.f = 0;
             isfirstfind = 1;
             isfirnotfind = 0;
+#ifdef KALMAN_OPEN
             history_yaw_offset.clear();
             history_yaw_offset.push_back(0);
             history_yaw_offset.push_back(0);
             num = 0;
-
+#endif
         }
-        else if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,dis,camera_location,20,0,Point2f(0,0)))  //结算角度
+        else f_armour.find_blue4(frame,dst,RRect,mode);
+
+        double xAngle=0,yAngle=0,dis=0;
+        if( data.isfind == 1)
         {
-            if( data.isfind == 1)
+            if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,dis,camera_location,20,0,Point2f(0,0)))  //结算角度
             {
                 if (isreceiveflag == 1)
                 {
@@ -266,6 +268,12 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
                 num = 0;
             }
         }
+        else
+        {
+            data.pitch_angle.f = 0;
+            data.yaw_angle.f = 0;\
+            data.dis.f = 0;
+        }
 
 #ifdef OPEN_SERIAL
         sp.TransformData(data);
@@ -280,255 +288,13 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
     camera0.release();
 }
 #else
-//void video::camera_read_write()
-//{
 
-//    //solvePnP
-//    double camera_canshu[9] = {527.3444,0,337.5232,0,531.2206,254.4946,0,0,1};
-//    double dist_coeff[5] = {-0.4259,0.2928,-0.0106,-0.0031,0};
-//    Mat camera_matrix(3,3,CV_64FC1,camera_canshu);
-//    Mat dist_matrix(1,5,CV_64FC1,dist_coeff);
-//    AngleSolve ans(camera_matrix,dist_matrix,13.5,12.5,0,20,1000,1);
-//    double rot_c[] = {1,0,0,0,1,0,0,0,1};
-//    double tran_c[] = {0,0,0};
-//    Mat rot_martrix(3,3,CV_64FC1,rot_c);
-//    Mat tran_matrix(3,1,CV_64FC1,tran_c);
-//    ans.Relation_Camera_PTZ(rot_martrix,tran_matrix,0);
-
-//#ifdef KALMAN_OPEN
-//    //kalman
-
-//    const int stateNum = 4;
-//    const int measureNum = 2;
-//    KalmanFilter KF(stateNum,measureNum);   //初始化
-
-//    KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,1,0,0,1,0,1,0,0,1,0,0,0,0,1);
-//    setIdentity(KF.measurementMatrix);   //H
-//    setIdentity(KF.measurementNoiseCov,Scalar::all(2000));  //R
-//    setIdentity(KF.processNoiseCov,Scalar(1));   //Q
-////    KF.measurementNoiseCov = (Mat_<float>(4,4)<<2000,0,0,0,0,2000,0,0,0,0,5000,0,0,0,0,5000);
-//    //P
-//    setIdentity(KF.errorCovPost,Scalar(1));
-//    //x(k-1)
-//    KF.statePost = (Mat_<float>(4,1)<<1,1,1,1);
-//    //z
-//    Mat measurement = Mat::zeros(measureNum,1,CV_32F);
-//#endif
-
-//#ifdef KALMAN_2
-//    const int stateNum2 = 2;
-//    const int measureNum2 = 1;
-//    KalmanFilter KF2(stateNum2,measureNum2);   //初始化
-
-//    KF2.transitionMatrix = (Mat_<float>(2,2)<<1,1,0,1);
-//    setIdentity(KF2.measurementMatrix);
-//    setIdentity(KF2.measurementNoiseCov,Scalar::all(1));  //R
-//    setIdentity(KF2.processNoiseCov,Scalar(10e-3));   //Q
-//    setIdentity(KF2.errorCovPost,Scalar(1));
-//    KF2.statePost = (Mat_<float>(2,1)<<1,1);
-//    Mat measurement2 = Mat::zeros(measureNum2,1,CV_32F);
-//#endif
-//    //各个类的初始化
-//#ifdef OPEN_SERIAL
-//    SerialPort sp;
-//    sp.initSerialPort();
-//#endif
-//    VisionData data = {0,0,0,0,0};   //send
-//    VisionData receive_data = {0,0,0,0,0};  //receive
-//    float pitch_current,pitch_last;
-//    float yaw_current,yaw_last;
-//    RotatedRect RRect;
-//    find_armour f_armour(fs);
-
-//    VideoCapture camera0(0);
-//    //设置摄像头分辨率为1280x720
-//    camera0.set(CV_CAP_PROP_FRAME_WIDTH,640);
-//    camera0.set(CV_CAP_PROP_FRAME_HEIGHT,480);
-//    VideoWriter writer(filename, CV_FOURCC('M', 'J', 'P', 'G'), 10, Size(640, 480),true);
-//    if (!camera0.isOpened())
-//    {
-//        cout << "Failed!"<<endl;
-//    }
-
-////    int FirstPic = 1;
-//    float t=0;
-//    float last_time = 0;
-//    int numofpic = 0;
-//    Mat camera_location;
-//    float vx=0,vy=0;
-//    KFparam kp = {0,0,0};
-//    float firstfind_t = 0,nowfind_t = 0,firnotfind_t = 0,nownotfind_t = 0;
-//    int isfirstfind = 1;
-//    int isfirnotfind = 0;
-//    int isfind_flag = 0;
-//    int isreceiveflag = 0;   //是否接收到数据
-//    vector<float> history_yaw_offset;
-//    while (1)
-//    {
-//        t = getTickCount();
-//        float delta_t = (t-last_time)/getTickFrequency()*1000;
-//        cout<<delta_t<<"ms"<<endl;
-//        last_time = t;
-//        Mat frame;
-////        double t1=0,t2=0;
-////        t1 = getTickCount();
-//        camera0 >> frame;
-//        if (frame.empty()) break;
-////        writer<<frame;
-//        imshow("src",frame);
-
-//        Mat dst = Mat::zeros(frame.size(), CV_8UC1);
-///**
-//        //gamma
-//        vector<Mat> BGR;
-//        split(frame,BGR);
-//        for(int i = 0;i<3;i++)
-//        {
-
-//            Mat fI;
-//            BGR[i].convertTo(fI,CV_64F,1.0/255,0);
-//            pow(fI,0.5,BGR[i]);
-//            BGR[i].convertTo(BGR[i],CV_8U,255,0);
-//        }
-//        merge(BGR,frame);
-//*/
-//#ifdef OPEN_SERIAL
-//        sp.get_Mode(mode,receive_data,isreceiveflag);
-//#endif
-////        if(flag==2) dst = f_armour.find_blue1(frame,dst.clone());
-////        if(mode==3) dst = f_armour.find_blue3(frame,dst.clone(),XY,ismiddle,isfind);
-//        if(mode==2) dst = f_armour.find_blue4(frame,dst.clone(),data,RRect);
-////        if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
-////        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
-////        if(mode==1) dst = f_armour.find_red4(frame,dst.clone(),XY,ismiddle,isfind);
-
-//        isfind_flag = data.isfind;
-//        double xAngle=0,yAngle=0,dis=0;
-//        double v = 0;
-//        if(mode == 0)
-//        {
-//            data.isfind = 0;
-//            isfirstfind = 1;
-//            isfirnotfind = 0;
-
-//        }
-//        else if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,dis,camera_location,20,0,Point2f(0,0)))
-//        {
-//            if(isfind_flag!= 0)
-//            {
-//                if (isreceiveflag == 1)
-//                {
-//                    isreceiveflag = 0;
-//                    num = 1;
-//                }
-//                if (isfirstfind == 1)
-//                {
-//                    firstfind_t = getTickCount();
-//                    isfirstfind = 0;
-//                    isfirnotfind = 1;
-//                }
-//                nowfind_t = getTickCount();
-//                //380ms后再开预测
-//                if((nowfind_t-firstfind_t)/getTickFrequency()*1000>=380)
-//                {
-//                    if(num<=2)
-//                    {
-//                        //获取当前云台角度;
-//                        pitch_current = receive_data.pitch_angle.f;
-//                        yaw_current = receive_data.yaw_angle.f;
-//                    }
-//                    else
-//                    {
-//                        receive_data.yaw_angle.f = receive_data.yaw_angle.f+history_yaw_offset[0];
-//                        pitch_current = receive_data.pitch_angle.f;
-//                        yaw_current = receive_data.yaw_angle.f;
-//                        history_yaw_offset.erase(history_yaw_offset.begin());
-//                    }
-//#ifdef KALMAN_OPEN
-//                    //1-2
-//                    Mat prediction = KF.predict();
-//                    //3-4
-//                    measurement.at<float>(0) = (float)xAngle+pitch_current;
-//                    measurement.at<float>(1) = (float)yAngle+yaw_current;
-//                    //5
-//                    KF.correct(measurement);
-
-//                    Mat next_Angle;
-//                    gemm(KF.transitionMatrix,KF.statePost,1,NULL,0,next_Angle);
-//                //发送预测的下一帧位置
-//                    data.pitch_angle.f = next_Angle.at<float>(0);//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
-//                    data.yaw_angle.f =  (next_Angle.at<float>(1)-KF.statePost.at<float>(1))*10+KF.statePost.at<float>(1)-yaw_current;
-//                    data.dis.f = yAngle;
-//#else
-//                    data.pitch_angle.f = xAngle;
-//                    data.yaw_angle.f =  yAngle;
-//                    data.dis.f = dis;
-//#endif
-//#ifdef KALMAN_2
-//                    //1-2
-//                    Mat prediction2 = KF2.predict();
-//                    //3-4
-//                    measurement2.at<float>(0) = data.yaw_angle.f;
-//                    //5
-//                    KF2.correct(measurement2);
-//                    data.yaw_angle.f = KF2.statePost.at<float>(0);
-
-//                    history_yaw_offset.push_back(data.yaw_angle.f);
-
-//#endif
-//                    num++;
-//                }
-//                else
-//                {
-//                    KF.statePost = (Mat_<float>(4,1)<<(xAngle+pitch_last),(yaw_last+yAngle),1,1);
-//                    data.pitch_angle.f = xAngle;
-//                    data.yaw_angle.f =  yAngle;
-//                    data.dis.f = dis;
-//                }
-//            }
-//            else
-//            {
-//                if(isfirnotfind == 1)
-//                {
-//                    firnotfind_t = getTickCount();
-//                    isfirnotfind = 0;
-//                }
-//                nownotfind_t = getTickCount();
-//                if ((nownotfind_t-firnotfind_t)/getTickFrequency()*1000<100&&firnotfind_t!=0)
-//                {
-//                    data.isfind = 1;
-//                    data.pitch_angle.f = 0;
-//                    data.yaw_angle.f = 0;
-//                }
-//                else
-//                {
-//                    numofpic = 0;
-//                    isfirstfind = 1;
-//                    firnotfind_t = 0;
-//                }
-//            }
-//        }
-
-//#ifdef OPEN_SERIAL
-//        sp.TransformData(data);
-//#endif
-////        t2 = getTickCount();
-////        double fps = (t2-t1)/getTickFrequency();
-////        cout<<"time:"<<fps<<endl;
-//        int i = waitKey(1);
-//        if( i=='q') break;
-//    }
-//    sp.Close();
-//    camera0.release();
-//}
-//#else
 void video::file_read()
 {
     find_armour f_armour(fs);
     VideoCapture camera0;
 
     VisionData data = {0,0,0,0,0};
-    RotatedRect RRect;
 
     camera0.open(filename);
     if (!camera0.isOpened())
@@ -539,6 +305,8 @@ void video::file_read()
 
     while (1)
     {
+        RotatedRect RRect;
+
         QTime time;
         time.start();
         Mat frame;
@@ -549,15 +317,15 @@ void video::file_read()
 
 //        imshow("src",frame);
 
-        int ismiddle,isfind;
-        Point XY;
+//        int ismiddle,isfind;
+//        Point XY;
         Mat dst = Mat::zeros(frame.size(), CV_8UC1);
 //        if(flag==1) dst = f_armour.find_blue1(frame,dst.clone());
-        if(mode==2) dst = f_armour.find_blue4(frame,dst.clone(),data,RRect);
-//        if(mode==2) dst = f_armour.find_blue4(frame,dst.clone(),data);
-//        if(flag==4) dst = f_armour.find_blue2(frame,dst.clone());
-//        if(flag==5) dst = f_armour.find_red2(frame,dst.clone());
-//        if(flag==6) dst = f_armour.find_red4(frame,dst.clone(),XY,ismiddle,isfind);
+        if(mode == 0)
+        {
+            ;
+        }
+        else f_armour.find_blue4(frame,dst,RRect,mode);
 
         imshow("dst",dst);
         t2 = getTickCount();
