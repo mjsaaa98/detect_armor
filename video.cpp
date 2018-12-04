@@ -152,7 +152,7 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
             num = 0;
 #endif
         }
-        else f_armour.find_blue4(frame,dst,RRect,mode);
+        else dst = f_armour.find_blue4(frame,dst,RRect,mode);
 
         double xAngle=0,yAngle=0,dis=0;
         if( data.isfind == 1)
@@ -325,7 +325,7 @@ void video::file_read()
         {
             ;
         }
-        else f_armour.find_blue4(frame,dst,RRect,mode);
+        else dst = f_armour.find_blue4(frame,dst,RRect,mode);
 
         imshow("dst",dst);
         t2 = getTickCount();

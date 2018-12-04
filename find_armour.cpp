@@ -16,13 +16,13 @@ find_armour::find_armour(FileStorage f)
     fs["height_d_wucha"] >> height_d_wucha;
     fs["min_rate"] >> min_rate;
     fs["max_rate"] >> max_rate;
+    Clear();
     clear_data();
-    isfind = 0;
-    ismiddle =0;
+
 }
 
 /**
- * @brief find_armour::Clear  清空所有数据结构
+ * @brief find_armour::Clear  清空所有数据
  */
 void find_armour::Clear()
 {
@@ -36,6 +36,8 @@ void find_armour::Clear()
     Rotate_Points.clear();
     contours_para.clear();
     CellMaxs.clear();
+    isfind = 0;
+    ismiddle =0;
 }
 /**
  * @brief find_armour::clear_data  切换指令时清空所有数据
@@ -51,14 +53,14 @@ void find_armour::clear_data()
 }
 
 /**
- * @brief find::Get_Rotated_param  得到构造Rotated的参数
+ * @brief find::Get_Rotated_param  得到构造Rotated的参数   not used
  * @param x1
  * @param x2
  * @param y1
  * @param y2
  * @param Rotated_angle
  */
-void find_armour::Get_Rotated_param(double x1,double x2,double y1,double y2,double &Rotated_angle)
+void find_armour::Get_Rotated_param(float x1,float x2,float y1,float y2,float &Rotated_angle)
 {
     if(x1<x2)
     {
@@ -94,15 +96,15 @@ void find_armour::Get_Rotated_param(double x1,double x2,double y1,double y2,doub
  * @param rows
  * @return
  */
-Mat find_armour::roi(Mat img,Point center,double d)
+Mat find_armour::roi(Mat img,Point center,float d)
 {
     Mat roi;
     int cols = img.cols;
     int rows = img.rows;
-    x1 = center.x-d*0.8;
-    x2 = center.x+d*0.8;
-    y1 = center.y-d*1.0;
-    y2 = center.y+d*1.0;
+    x1 = center.x-d*1;
+    x2 = center.x+d*1;
+    y1 = center.y-d*0.8;
+    y2 = center.y+d*0.8;
     if(x1<=0) x1 = 1;
     if(x2>cols) x2 = cols-1;
     if(y1<=0) y1 = 1;
@@ -171,9 +173,9 @@ void find_armour::image_preprocess(int mode,Mat src,Mat &dst)
  * @param dst  output 输出图像
  * @param RRect output 输出旋转矩形，用于解算出角度
  * @param mode  input 输入指令
- * @return
+ * @return Mat
  */
-void find_armour::find_blue4(Mat img,Mat &dst,RotatedRect&RRect,int mode)
+Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
 {
     Clear();
 
@@ -190,7 +192,7 @@ void find_armour::find_blue4(Mat img,Mat &dst,RotatedRect&RRect,int mode)
 
     if(isROIflag == 0)
     {
-        search_armour(img,dst,isROIflag);
+        search_armour(img,dst);
 
         if(armour_center.size()==0)
         {
@@ -204,28 +206,38 @@ void find_armour::find_blue4(Mat img,Mat &dst,RotatedRect&RRect,int mode)
             last_d = diameters[0];
             circle(img,last_center,last_d/2,Scalar(0,255,0));
             Rotate_Point = Rotate_Points[0];
-            isROIflag = 0;
+            isROIflag = 1;
             isfind = 1;
         }
         else
         {
             int n = 0;
             double d1 = diameters[0];
+            vector<Point2f> temp_center = armour_center;
+            sort(temp_center.begin(),temp_center.end(),SortArmorCenterY);  //降序
+            sort(temp_center.begin(),temp_center.end(),SortArmorCenterX);
             for (int i = 1;i<armour_center.size();i++)
             {
-                double d2 = diameters[i];
-                if(d1>d2)
-                {
-                    d1 = d2;
+                if(temp_center[0]==armour_center[i])
+                {\
                     n = i;
+                    break;
                 }
             }
-
+//            for (int i = 1;i<armour_center.size();i++)
+//            {
+//                double d2 = diameters[i];
+//                if(d1>d2)
+//                {
+//                    d1 = d2;
+//                    n = i;
+//                }
+//            }
             last_center = armour_center[n];
-            last_d = d1;
+            last_d = diameters[n];
             Rotate_Point = Rotate_Points[n];
             circle(img,last_center,last_d/2,Scalar(0,255,0));
-            isROIflag = 0;
+            isROIflag = 1;
             isfind = 1;
         }
     }
@@ -233,13 +245,14 @@ void find_armour::find_blue4(Mat img,Mat &dst,RotatedRect&RRect,int mode)
     {
         //截取本帧图片，只对截图操作
         dstROI = roi(dst,last_center,last_d);
-        search_armour(img,dstROI,isROIflag);
+        search_armour(img,dstROI);
         //当前截图区域没找到，以半径扩展
         while(armour_center.size()==0)
         {
+            Clear();
             last_d = last_d*1.3;
             dstROI = roi(dst,last_center,last_d);
-            search_armour(img,dstROI,isROIflag);
+            search_armour(img,dstROI);
             if(x1==1||x2==img.cols-1||y1==1||y2==img.rows-1) break;
         }
         //识别到的装甲板个数
@@ -260,13 +273,15 @@ void find_armour::find_blue4(Mat img,Mat &dst,RotatedRect&RRect,int mode)
         else
         {
             int n = 0;
-            double d1 = diameters[0];
+            vector<Point2f> temp_center = armour_center;
+            sort(temp_center.begin(),temp_center.end(),SortArmorCenterY);  //降序
+            sort(temp_center.begin(),temp_center.end(),SortArmorCenterX);
             for (int i = 1;i<armour_center.size();i++)
             {
-                double d2 = diameters[i];
-                if(d1>d2)
-                {
+                if(temp_center[0]==armour_center[i])
+                {\
                     n = i;
+                    break;
                 }
             }
             last_center = armour_center[n];
@@ -294,6 +309,7 @@ void find_armour::find_blue4(Mat img,Mat &dst,RotatedRect&RRect,int mode)
 #endif
     }
     imshow("find",img);
+    return dst;
 }
 
 /**
@@ -341,12 +357,27 @@ void find_armour::get_Light()
                     result_armor.push_back(Armorlists[i][j]);
                     RotatedRect r = Armorlists[i][j];
                     double real_h = r.size.height < r.size.width ? r.size.width : r.size.height;
-                    Vec4f contour_para(real_h,r.center.x,r.center.y,r.angle);
+                    Vec4f contour_para(0,0,0,0);
+                    if(isROIflag==0){
+                        contour_para[0] = real_h;
+                        contour_para[1] = r.center.x;
+                        contour_para[2] = r.center.y;
+                        contour_para[3] = r.angle;
+                    }else{
+                        contour_para[0] = real_h;
+                        contour_para[1] = r.center.x+x1;
+                        contour_para[2] = r.center.y+y1;
+                        contour_para[3] = r.angle;
+                        cout<<"1:"<<real_h<<endl;
+                        cout<<"para:"<<contour_para[1]<<endl;\
+                        cout<<"========="<<endl;
+                    }
                     contours_para.push_back(contour_para);
                 }
             }
         }
     }
+
 }
 
 /**
@@ -368,7 +399,7 @@ void find_armour::src_get_armor()
     float area1,area2,area_rate;
     float x1,x2;
     float y1,y2;
-    float y_dist,x_dist,min_h,height_d,K,x2h_rate,angle_diff;
+    float y_dist,x_dist,min_h,height_d,K,x2h_rate,angle_diff,max_h;
     float angle_of_Rotated,height_of_Rotated;
     for(int i=0;i<size-1;i++)
     {
@@ -406,11 +437,14 @@ void find_armour::src_get_armor()
             center_point2 = result_armor[j].center;
             area2 = result_armor[j].size.height * result_armor[j].size.width;
 
-            double angle_d = abs(angle2-angle1);
-            y_dist = abs(y2-y1);
-            x_dist = abs(x1-x2);
+            float angle_d = fabs(angle2-angle1);
+            y_dist = fabs(y2-y1);
+            if(y1>y2) y_dist = y1-y2;
+            else y_dist = y2-y1;
+            x_dist = x2-x1;
             min_h = min(height1,height2);
-            height_d = abs(height2-height1);
+            max_h = max(height1,height2);
+            height_d = fabs(height2-height1);
             if(center_point1.x != center_point2.x)
             {
                 K = (center_point1.y - center_point2.y) / (center_point1.x - center_point2.x);
@@ -432,6 +466,27 @@ void find_armour::src_get_armor()
                     area_rate = area2 / area1;
                 }
                 angle_of_Rotated = MAX(Point_Angle(pt[0],pt[2]),Point_Angle(pt[1],pt[3]));//旋转矩形的角度
+
+                height_of_Rotated = MAX(MAX(result_armor[i].size.width,result_armor[j].size.width),
+                                        MAX(result_armor[i].size.height,result_armor[j].size.height));
+                x2h_rate = x_dist/height_of_Rotated;
+                //get circle diameter
+                double d=sqrt(pow(contours_para[i][1]-contours_para[j][1],2)
+                        +pow(contours_para[i][2]-contours_para[j][2],2));
+                if(y_dist<0.4*(height1+height2)&&(angle_d<20||angle_d>50)
+                       &&fabs(K)<0.5&&angle_of_Rotated<30&&area_rate<3.0&&x2h_rate>=0.8&&x2h_rate<=2.5&&height_d<0.5*max_h)
+                {
+                    diameters.push_back(d);
+                    Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+                    armour_center.push_back(center);
+                    vector<Point2f> VecPoint;
+                    VecPoint.push_back(pt[0]);
+                    VecPoint.push_back(pt[1]);
+                    VecPoint.push_back(pt[2]);
+                    VecPoint.push_back(pt[3]);
+                    cout<<pt[0]<<endl<<pt[1]<<endl<<pt[2]<<endl<<pt[3]<<endl;
+                    Rotate_Points.push_back(VecPoint);
+                }
             }
 //            if(angle1 > 50.0 && angle2 < 40.0){
 //                angle_diff = 90.0 - angle1 + angle2;
@@ -441,26 +496,7 @@ void find_armour::src_get_armor()
 //                if(angle1 > angle2) angle_diff = angle1 - angle2;
 //                else angleabs = angle2 - angle1;
 //            }
-            height_of_Rotated = MAX(MAX(result_armor[i].size.width,result_armor[j].size.width),MAX(result_armor[i].size.height,result_armor[j].size.height));
-            x2h_rate = x_dist/height_of_Rotated;
-            if(y_dist<0.15*(height1+height2)&&(angle_d<20||angle_d>50)
-                   &&fabs(K)<0.5&&angle_of_Rotated<20&&area_rate<3.0)
-            {
-                //get circle diameter
-                double d=sqrt(pow(contours_para[i][1]-contours_para[j][1],2)
-                        +pow(contours_para[i][2]-contours_para[j][2],2));
 
-                diameters.push_back(d);
-                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
-                armour_center.push_back(center);
-                vector<Point2f> VecPoint;
-                VecPoint.push_back(pt[0]);
-                VecPoint.push_back(pt[1]);
-                VecPoint.push_back(pt[2]);
-                VecPoint.push_back(pt[3]);
-                cout<<pt[0]<<endl<<pt[1]<<endl<<pt[2]<<endl<<pt[3]<<endl;
-                Rotate_Points.push_back(VecPoint);
-            }
         }
     }
 }
@@ -475,7 +511,7 @@ void find_armour::src_get_armor()
  * @param Rotated_angles    output save RotatedRect's Angle
  * @param Heights        output save Height
  */
-void find_armour::search_armour(Mat img,Mat dst,int flags)
+void find_armour::search_armour(Mat img,Mat dst)
 {
     vector<vector<Point> > contours;
 
@@ -483,7 +519,7 @@ void find_armour::search_armour(Mat img,Mat dst,int flags)
 
     int num = contours.size();   //contour's amount
 
-    if(flags == 0)
+    if(isROIflag == 0)
     {
         for(int i = 0;i<num;i++)
         {
@@ -544,9 +580,9 @@ void find_armour::search_armour(Mat img,Mat dst,int flags)
                 boxPoints(r,vertice);
                 for(int k = 0;k<4;k++)
                 {
-                    Point p1 = Point(vertice.row(k));
+                    Point p1 = Point(Point(vertice.row(k)).x+x1,Point(vertice.row(k)).y+y1);
                     int n = (k+1)%4;
-                    Point p2 = Point(vertice.row(n));
+                    Point p2 = Point(Point(vertice.row(n)).x+x1,Point(vertice.row(n)).y+y1);
                     line(img,p1,p2,Scalar(0,255,0),2);
                 }
                 fir_armor.push_back(r);
@@ -570,6 +606,7 @@ void find_armour::search_armour(Mat img,Mat dst,int flags)
         }
         imshow("show",Show);
 #endif
+        if(result_armor.size()>=2)
         sort(result_armor.begin(),result_armor.end(),Sort_RotatedRect);
         src_get_armor();
     }

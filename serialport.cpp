@@ -316,7 +316,7 @@ void SerialPort::TransformData(const VisionData &data){
 //    if((serialtimer - timerlast) / cv::getTickFrequency() > 1.0) return;
     Tdata[0] = 0xA5;
 
-    Tdata[1] = CmdID1;
+    Tdata[1] = CmdID2;
     Append_CRC8_Check_Sum(Tdata,3);
 
     Tdata[3] = data.pitch_angle.c[0];
