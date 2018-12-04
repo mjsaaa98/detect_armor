@@ -5,6 +5,9 @@ float GetSpeed(float angle,float last_angle,float t,float&v)
     v = (angle - last_angle)/(t)*1000;
     v = v>30?30:v;
     v = v<-30?-30:v;
+#ifdef SHOW_DEBUG
+    cout<<"速度:"<<v<<endl;
+#endif
 }
 video::video(string c)
 {
@@ -37,8 +40,8 @@ void video::camera_read_write()
 {
 
     //solvePnP
-    double camera_canshu[9] = {527.3444,0,337.5232,0,531.2206,254.4946,0,0,1};
-    double dist_coeff[5] = {-0.4259,0.2928,-0.0106,-0.0031,0};
+//    double camera_canshu[9] = {527.3444,0,337.5232,0,531.2206,254.4946,0,0,1};
+//    double dist_coeff[5] = {-0.4259,0.2928,-0.0106,-0.0031,0};
     Mat camera_matrix(3,3,CV_64FC1,camera_canshu);
     Mat dist_matrix(1,5,CV_64FC1,dist_coeff);
     AngleSolve ans(camera_matrix,dist_matrix,13.5,12.5,0,20,1000,1);
@@ -53,7 +56,7 @@ void video::camera_read_write()
     const int measureNum = 4;
     KalmanFilter KF(stateNum,measureNum);   //初始化
 
-    KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,0.001,0,0,1,0,0.001,0,0,1,0,0,0,0,1);
+    KF.transitionMatrix = (Mat_<float>(4,4)<<1,0,0.01,0,0,1,0,0.01,0,0,1,0,0,0,0,1);
     setIdentity(KF.measurementMatrix);   //H
 //    setIdentity(KF.measurementNoiseCov,Scalar::all(1));  //R
     setIdentity(KF.processNoiseCov,Scalar(1));   //Q
@@ -64,7 +67,7 @@ void video::camera_read_write()
     //x(k-1)
     KF.statePost = (Mat_<float>(4,1)<<1,1,1,1);
     //z
-Mat measurement = Mat::zeros(measureNum,1,CV_32F);
+    Mat measurement = Mat::zeros(measureNum,1,CV_32F);
 #endif
 #ifdef KALMAN_2
     const int stateNum2 = 2;
@@ -86,11 +89,8 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
 #endif
     VisionData data = {0,0,0,0,0};
     VisionData receive_data = {0,0,0,0,0};
-    float pitch_current,pitch_last;
-    float yaw_current,yaw_last;
     RotatedRect RRect;
     find_armour f_armour(fs);
-
     VideoCapture camera0(0);
 #ifdef F640
     //设置摄像头分辨率为1280x720
@@ -106,7 +106,6 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
         cout << "Failed!"<<endl;
     }
 
-//    int FirstPic = 1;
     float t=0;
     float last_time = 0;
     int numofpic = 0;
@@ -118,17 +117,27 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
     int isfirnotfind = 0;
     int isreceiveflag = 0;   //是否接收到数据
     vector<float> history_yaw_offset(2);
+#ifdef SHOW_DEBUG
+    cout<<"history"<<history_yaw_offset[0]<<","<<history_yaw_offset[1]<<endl;
+#endif
     last_time = getTickCount();
     int num = 0;
+    float sum_yaw_offset = 0;   //当前云台的总偏移量（相对第一次识别到的偏移）
     while (1)
     {
         t = getTickCount();
         float delta_t = (t-last_time)/getTickFrequency()*1000;   //获取两帧之间的时间差
         last_time = t;
-//        cout<<delta_t<<"ms"<<endl;
+#ifdef SHOW_DEBUG
+        cout<<delta_t<<"ms"<<endl;
+#endif
         Mat frame;
         camera0 >> frame;
-        if (frame.empty()) break;
+        if (frame.empty())
+        {
+            cout<<"No frame!"<<endl;
+            break;
+        }
 //        writer<<frame;     //写入视频文件
         imshow("src",frame);
 
@@ -159,10 +168,12 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
         {
             if (ans.Rotated_SolveAngle(RRect,xAngle,yAngle,dis,camera_location,20,0,Point2f(0,0)))  //结算角度
             {
+                //第一次接收数据标志
                 if (isreceiveflag == 1)
                 {
                     isreceiveflag = 0;
                 }
+                //第一次找到目标标志
                 if (isfirstfind == 1)
                 {
                     firstfind_t = getTickCount();
@@ -170,103 +181,89 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
                     isfirnotfind = 1;
                 }
                 nowfind_t = getTickCount();
-//                //380ms后再开预测
-//                if((nowfind_t-firstfind_t)/getTickFrequency()*1000>=380)
-                if(1)
-                {
-//                    receive_data.yaw_angle.f = receive_data.yaw_angle.f+history_yaw_offset[0];
-//                    pitch_current = receive_data.pitch_angle.f;
-//                    yaw_current = receive_data.yaw_angle.f;
-//                    history_yaw_offset.erase(history_yaw_offset.begin());
 #ifdef KALMAN_OPEN
-                    //1-2
-                    Mat prediction = KF.predict();
-                    float pre_xAngle = prediction.at<float>(0);
-                    float pre_yAngle = prediction.at<float>(1);
+                //1-2
+                Mat prediction = KF.predict();
+                float pre_xAngle = prediction.at<float>(0);
+                float pre_yAngle = prediction.at<float>(1);
 
-                    //get speed
-                    GetSpeed(pre_xAngle,kp.last_xAngle,delta_t,vx);
-                    kp.last_xAngle = pre_xAngle;
-                    GetSpeed(yaw_current+pre_yAngle,kp.last_yAngle,delta_t,vy);
-                    kp.last_yAngle = yaw_current+pre_yAngle;
-//                    GetSpeed(pitch_current+pre_xAngle,kp.last_xAngle,delta_t,vx);
-//                    kp.last_xAngle =pitch_current+ pre_xAngle;
-//                    GetSpeed(yaw_current+pre_yAngle,kp.last_yAngle,delta_t,vy);
-//                    kp.last_yAngle = yaw_current+pre_yAngle;
+                //get speed
+                GetSpeed(pre_xAngle,kp.last_xAngle,delta_t,vx);
+                kp.last_xAngle = pre_xAngle;
+                GetSpeed(pre_yAngle,kp.last_yAngle,delta_t,vy);
+                kp.last_yAngle = pre_yAngle;
 
-                    //3-4
-                    measurement.at<float>(0) = (float)xAngle;
-                    measurement.at<float>(1) = (float)yAngle+history_yaw_offset[0];
-                    measurement.at<float>(2) = vx;
-                    measurement.at<float>(3) = vy;
-                    //5
-                    KF.correct(measurement);
 
-                    if(num>=10)
-                    {
-                        data.pitch_angle.f = xAngle;//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
-                        data.yaw_angle.f = KF.statePost.at<float>(1)-history_yaw_offset[0]+KF.statePost.at<float>(3)*delta_t/1000;
-                        data.dis.f = yAngle;
-                    }
-                    else
-                    {
-                        data.pitch_angle.f = xAngle;//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
-                        data.yaw_angle.f = yAngle;
-                        data.dis.f = yAngle;
-                    }
-                    history_yaw_offset.erase(history_yaw_offset.begin());
-                    history_yaw_offset.push_back(data.yaw_angle.f);
-                    num++;
-#else
-                    data.pitch_angle.f = xAngle;
-                    data.yaw_angle.f =  yAngle;
-                    data.dis.f = dis;
-#endif
-#ifdef KALMAN_2
-                    //1-2
-                    Mat prediction2 = KF2.predict();
-                    //3-4
-                    measurement2.at<float>(0) = data.yaw_angle.f;
-                    //5
-                    KF2.correct(measurement2);
-                    data.yaw_angle.f = KF2.statePost.at<float>(0);
-#endif
+                //3-4
+                measurement.at<float>(0) = (float)xAngle;
+                measurement.at<float>(1) = (float)yAngle+sum_yaw_offset;
+                measurement.at<float>(2) = 0;
+                measurement.at<float>(3) = vy;
+                //5
+                KF.correct(measurement);
+                if((nowfind_t-firstfind_t)/getTickFrequency()*1000>=1000)   //1000ms之后再发送预测值
+                {
+                    data.pitch_angle.f = xAngle;//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
+                    data.yaw_angle.f = KF.statePost.at<float>(1)-sum_yaw_offset+KF.statePost.at<float>(3)*delta_t/1000;
+                    data.dis.f = yAngle;
                 }
                 else
                 {
-                    data.pitch_angle.f = xAngle;
-                    data.yaw_angle.f =  yAngle;
-                    data.dis.f = dis;
+#ifdef SHOW_DEBUG
+                    cout<<"发送当前值的帧数:"<<num++<<endl;
+#endif
+                    data.pitch_angle.f = xAngle;//-KF.statePost.at<float>(0))*10+KF.statePost.at<float>(0);
+                    data.yaw_angle.f = yAngle;
+                    data.dis.f = yAngle;
                 }
+                history_yaw_offset.erase(history_yaw_offset.begin());   //清除已经被使用的第一个数据
+                history_yaw_offset.push_back(data.yaw_angle.f);    //加入新传输的数据
+#ifdef SHOW_DEBUG
+                cout<<"当前历史数据中的第一个值:"<<history_yaw_offset[0]<<endl;
+#endif
+#else
+                data.pitch_angle.f = xAngle;
+                data.yaw_angle.f =  yAngle;
+                data.dis.f = dis;
+#endif
+#ifdef KALMAN_2
+                //1-2
+                Mat prediction2 = KF2.predict();
+                //3-4
+                measurement2.at<float>(0) = data.yaw_angle.f;
+                //5
+                KF2.correct(measurement2);
+                data.yaw_angle.f = KF2.statePost.at<float>(0);
+#endif
             }
             else
             {
-                if(isfirnotfind == 1)
-                {
-                    firnotfind_t = getTickCount();
-                    isfirnotfind = 0;
-                }
-                nownotfind_t = getTickCount();
-//                if ((nownotfind_t-firnotfind_t)/getTickFrequency()*1000<100&&firnotfind_t!=0)
-//                {
-//                    data.isfind = 1;
-//                    data.pitch_angle.f = 0;
-//                    data.yaw_angle.f = 0;
-//                }
-                if(0) ;
-                else
-                {
-                    numofpic = 0;
-                    isfirstfind = 1;
-                    firnotfind_t = 0;
-                    data.pitch_angle.f = 0;
-                    data.yaw_angle.f = 0;
-                }
-                history_yaw_offset.clear();
-                history_yaw_offset.push_back(0);
-                history_yaw_offset.push_back(0);
-                num = 0;
+                data.pitch_angle.f = 0;
+                data.yaw_angle.f =  0;
+                data.dis.f = 0;
+                history_yaw_offset.erase(history_yaw_offset.begin());   //清除已经被使用的第一个数据
+                history_yaw_offset.push_back(data.yaw_angle.f);    //加入新传输的数据
             }
+        }
+        else if(data.isfind==0)
+        {
+            if(isfirnotfind == 1)
+            {
+                firnotfind_t = getTickCount();
+                isfirnotfind = 0;
+                nowfind_t = 0;
+            }
+            nownotfind_t = getTickCount();
+            numofpic = 0;
+            isfirstfind = 1;
+            sum_yaw_offset = 0;  //清零
+            history_yaw_offset.clear(); //清空
+            history_yaw_offset.push_back(0);
+            history_yaw_offset.push_back(0);
+            num = 0;
+            data.pitch_angle.f = 0;
+            data.yaw_angle.f = 0;
+            data.dis.f = 0;
         }
         else
         {
@@ -278,9 +275,6 @@ Mat measurement = Mat::zeros(measureNum,1,CV_32F);
 #ifdef OPEN_SERIAL
         sp.TransformData(data);
 #endif
-//        t2 = getTickCount();
-//        double fps = (t2-t1)/getTickFrequency();
-//        cout<<"time:"<<fps<<endl;
         int i = waitKey(1);
         if( i=='q') break;
     }
