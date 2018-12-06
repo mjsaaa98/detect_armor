@@ -8,7 +8,7 @@
 #include "serialport.h"
 #include "get_colors.h"
 //#define KALMANXY_OPEN
-//#define SHOWDEBUG
+#define SHOWDEBUG
 using namespace cv;
 using namespace std;
 extern FileStorage fs;
@@ -76,6 +76,7 @@ private:
     vector<float> diameters;
     vector<Point2f> armour_center;
     vector<vector<RotatedRect> > Armorlists;
+    vector<Point2f> Rotate_Point;
     vector<vector<Point2f> > Rotate_Points;
     vector<RotatedRect> fir_armor,result_armor;
     vector<Vec4f> contours_para;

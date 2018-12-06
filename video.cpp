@@ -327,7 +327,7 @@ void video::file_read()
 //        cout<<"time:"<<fps<<"ms"<<endl;
 //        qDebug()<<"time:"<<time.elapsed()<<"ms";//输出计时
 
-        int i = waitKey(0);
+        int i = waitKey(100);
         if( i=='q') break;
     }
 }
