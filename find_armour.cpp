@@ -183,7 +183,6 @@ void find_armour::image_preprocess(int mode,Mat src,Mat &dst)
 Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
 {
     Clear();
-
     //判断是否切换命令了
     if(last_mode!=mode)
     {
@@ -198,7 +197,6 @@ Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
     {
         clear_data();
         search_armour(img,dst);
-
         if(armour_center.size()==0)
         {
             isROIflag = 0;
@@ -363,20 +361,10 @@ void find_armour::get_Light()
                     RotatedRect r = Armorlists[i][j];
                     double real_h = r.size.height < r.size.width ? r.size.width : r.size.height;
                     Vec4f contour_para(0,0,0,0);
-                    if(isROIflag==0){
-                        contour_para[0] = real_h;
-                        contour_para[1] = r.center.x;
-                        contour_para[2] = r.center.y;
-                        contour_para[3] = r.angle;
-                    }else{
-                        contour_para[0] = real_h;
-                        contour_para[1] = r.center.x+x1;
-                        contour_para[2] = r.center.y+y1;
-                        contour_para[3] = r.angle;
-                        cout<<"1:"<<real_h<<endl;
-                        cout<<"para:"<<contour_para[1]<<endl;\
-                        cout<<"========="<<endl;
-                    }
+                    contour_para[0] = real_h;
+                    contour_para[1] = r.center.x;
+                    contour_para[2] = r.center.y;
+                    contour_para[3] = r.angle;
                     contours_para.push_back(contour_para);
                 }
             }
@@ -500,10 +488,10 @@ void find_armour::src_get_armor()
                     diameters.push_back(d);
                     Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
                     armour_center.push_back(center);
-                    VecPoint.push_back(pt[0]+Point2f(find_armour::x1,find_armour::y1));
-                    VecPoint.push_back(pt[1]+Point2f(find_armour::x1,find_armour::y1));
-                    VecPoint.push_back(pt[2]+Point2f(find_armour::x1,find_armour::y1));
-                    VecPoint.push_back(pt[3]+Point2f(find_armour::x1,find_armour::y1));
+                    VecPoint.push_back(pt[0]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                    VecPoint.push_back(pt[1]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                    VecPoint.push_back(pt[2]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                    VecPoint.push_back(pt[3]/*+Point2f(find_armour::x1,find_armour::y1)*/);
                     Rotate_Points.push_back(VecPoint);
                 }
             }
@@ -525,69 +513,36 @@ void find_armour::search_armour(Mat img,Mat dst)
 {
     vector<vector<Point> > contours;
 
-    findContours(dst,contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
+    //findcontuors最后一个参数是偏移量，对于截图来说，巨好用
+    findContours(dst,contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE,Point(x1,y1));
 
     int num = contours.size();   //contour's amount
-
-    if(isROIflag == 0)
+    for(int i = 0;i<num;i++)
     {
-        for(int i = 0;i<num;i++)
+        RotatedRect r = minAreaRect(contours[i]);
+        double real_h = r.size.height < r.size.width ? r.size.width : r.size.height;
+        double real_w = r.size.height < r.size.width ? r.size.height : r.size.width;
+        if(real_h<1.1*real_w) continue;
+        //长宽分明时。筛去平躺的矩形
+        if((r.size.height>r.size.width&&r.angle>-30)
+            ||(r.size.height<r.size.width&&r.angle<-60))
         {
-            RotatedRect r = minAreaRect(contours[i]);
-            double real_h = r.size.height < r.size.width ? r.size.width : r.size.height;
-            double real_w = r.size.height < r.size.width ? r.size.height : r.size.width;
-            if(real_h<1.1*real_w) continue;
-            //长宽分明时。筛去平躺的矩形
-            if((r.size.height>r.size.width&&r.angle>-30)
-                ||(r.size.height<r.size.width&&r.angle<-60))
+            Mat vertice;
+            boxPoints(r,vertice);
+            for(int k = 0;k<4;k++)
             {
-                Mat vertice;
-                boxPoints(r,vertice);
-                for(int k = 0;k<4;k++)
-                {
-                    Point p1 = Point(vertice.row(k));
-                    int n = (k+1)%4;
-                    Point p2 = Point(vertice.row(n));
-                    line(img,p1,p2,Scalar(0,255,0),2);
-                }
-                fir_armor.push_back(r);
+                Point p1 = Point(vertice.row(k));
+                int n = (k+1)%4;
+                Point p2 = Point(vertice.row(n));
+                line(img,p1,p2,Scalar(0,255,0),2);
             }
+            fir_armor.push_back(r);
         }
-        sort(fir_armor.begin(),fir_armor.end(),Sort_RotatedRect);
-        get_Light();
-        sort(result_armor.begin(),result_armor.end(),Sort_RotatedRect);
-        src_get_armor();
     }
-    else
-    {
-        for(int i = 0;i<num;i++)
-        {
-            RotatedRect r = minAreaRect(contours[i]);
-            double real_h = r.size.height < r.size.width ? r.size.width : r.size.height;
-            double real_w = r.size.height < r.size.width ? r.size.height : r.size.width;
-            if(real_h<1.1*real_w) continue;
-            //长宽分明时。筛去平躺的矩形
-            if((r.size.height>r.size.width&&r.angle>-30)
-                ||(r.size.height<r.size.width&&r.angle<-60))
-            {
-                Mat vertice;
-                boxPoints(r,vertice);
-                for(int k = 0;k<4;k++)
-                {
-                    Point p1 = Point(Point(vertice.row(k)).x+x1,Point(vertice.row(k)).y+y1);
-                    int n = (k+1)%4;
-                    Point p2 = Point(Point(vertice.row(n)).x+x1,Point(vertice.row(n)).y+y1);
-                    line(img,p1,p2,Scalar(0,255,0),2);
-                }
-                fir_armor.push_back(r);
-            }
-        }
-        sort(fir_armor.begin(),fir_armor.end(),Sort_RotatedRect);
-        get_Light();
-        if(result_armor.size()>=2)
-        sort(result_armor.begin(),result_armor.end(),Sort_RotatedRect);
-        src_get_armor();
-    }
+    sort(fir_armor.begin(),fir_armor.end(),Sort_RotatedRect);
+    get_Light();
+    sort(result_armor.begin(),result_armor.end(),Sort_RotatedRect);
+    src_get_armor();
 }
 
 

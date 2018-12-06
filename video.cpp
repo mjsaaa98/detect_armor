@@ -321,7 +321,7 @@ void video::file_read()
         }
         else dst = f_armour.find_blue4(frame,dst,RRect,mode);
 
-        imshow("dst",dst);
+//        imshow("dst",dst);
         t2 = getTickCount();
 //        double fps = (t2-t1)/getTickFrequency()*1000;
 //        cout<<"time:"<<fps<<"ms"<<endl;
