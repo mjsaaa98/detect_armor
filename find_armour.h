@@ -7,6 +7,7 @@
 #include <opencv2/imgproc.hpp>
 #include "serialport.h"
 #include "get_colors.h"
+
 //#define KALMANXY_OPEN
 #define SHOWDEBUG
 using namespace cv;
@@ -64,6 +65,7 @@ public:
     void Get_Rotated_param(float x1,float x2,float y1,float y2,float &Rotated_angle);
     Mat find_blue4(Mat,Mat dst,RotatedRect&,int);
     Mat find_red4(Mat,Mat,Point&,int&,int&);
+    Mat camshift_findarmor(Mat,Mat);
 public:
     //与串口通信有关的数据
     int ismiddle;
@@ -93,6 +95,20 @@ private:
     float last_d;
     float last_angle;
     Size2f last_size;
+
+
+    /** camshift para
+      */
+private:
+    int trackObject = 0;
+    Rect selection,selection1,selection2;
+    int vmin = 10, vmax = 256, smin = 30;
+    Rect trackWindow,trackWindow1;
+    int find_armor_flag=0;
+    int isfindflag = 0;
+
+    Mat frame, hsv, hue,hue1, mask,mask1, hist, hist1,histimg = Mat::zeros(640, 480, CV_8UC3),histimg1 = Mat::zeros(640, 480, CV_8UC3), backproj,backproj1;
+
 };
 
 #endif // FIND_ARMOUR_H

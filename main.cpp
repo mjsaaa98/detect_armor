@@ -1,17 +1,14 @@
 #include "video.h"
 #include "v4l2_set.h"
+#include <thread>
+#include <mutex>
+#include <ImgFactory.h>
 //#define DEBUG
 
 FileStorage fs("canshu.yaml",FileStorage::READ);
 
-int main()
+void open_and_set_camera_para(int fd1)
 {
-
-    int fd = open("/dev/base0",O_RDWR);
-    int fd1 = open("/dev/video0",O_RDWR);
-
-    //save video's file path(读取视频文件时使用)
-    string c2 ="/home/mjs/Videos/blue.avi";
 
     int saturaion,exposure,contrast,gain,brightness,white;
     fs["saturation"] >> saturaion;
@@ -22,7 +19,6 @@ int main()
     fs["gain"] >> gain;
     fs["brightness"] >> brightness;
     fs["white"] >> white;
-
     //set camera's param
     v4l2_set vs(fd1);
     vs.set_saturation(saturaion);      //饱和度
@@ -31,25 +27,32 @@ int main()
 //    vs.set_gain(gain);         //增益
 //    vs.set_brightness(brightness);   //亮度
 //    vs.set_white_balance(white);    //白平衡
+}
 
+int main()
+{
 
-    //open camera and write video or read .avi file
-    //find color and armous's center;
-    //select == 1--camera
-    //select == 2--.avi
-    //flag == 1--find red armour
-    //flag == 2--find blue armour
-//    string c1 = "/home/mjs/Videos/bubing0.avi";  //save video path
+//    int fd = open("/dev/base0",O_RDWR);
+    int fd1 = open("/dev/video0",O_RDWR);
+    open_and_set_camera_para(fd1);
 
-string c1 ="bubing.avi";
-//    fs["select"]>>select;   //camera or video_file
-//    fs["flag"]>>flag;   //  which mode.
-#ifndef VIDEO_DEBUG
-//    video vd(0,c1,flag);
-    video vd(0,c1);
-    vd.camera_read_write();
-#else
-    video vd(c2);
-    vd.file_read();
-#endif
+    ImgFactory imgfactory;
+    std::thread t1(&ImgFactory::Img_read,&imgfactory);
+    std::thread t2(&ImgFactory::Img_handle,&imgfactory);
+
+    t1.join();
+    t2.join();
+
+    return 0;
+
+//#ifndef VIDEO_DEBUG
+//    string c1 ="bubing.avi";
+//    video vd(0,c1);
+//    vd.camera_read_write();
+//#else
+//    //save video's file path(读取视频文件时使用)
+//        string c2 ="/home/mjs/Videos/blue.avi";
+//        video vd(c2);
+//    vd.file_read();
+//#endif
 }

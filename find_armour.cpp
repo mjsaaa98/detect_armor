@@ -1,5 +1,38 @@
 #include "find_armour.h"
-
+int hsize = 16;
+float hranges[] = {80,120};
+const float* phranges = hranges;
+int hsize1 = 16;
+float hranges1[] = {80,120};
+const float* phranges1 = hranges1;
+Rect roi2(Point center,double d,int cols,int rows)
+{
+    Rect roi;
+    float x1 = center.x-d*0.7;
+    float x2 = center.x-d*0.2;
+    float y1 = center.y-d*0.7;
+    float y2 = center.y+d*0.7;
+    if(x1<=0) x1 = 1;
+    if(x2>cols) x2 = cols-1;
+    if(y1<=0) y1 = 1;
+    if(y2>=rows) y2 = rows-1;
+    roi = Rect(Point(x1,y1),Point(x2,y2));
+    return roi;
+}
+Rect roi1(Point center,double d,int cols,int rows)
+{
+    Rect roi;
+    float x1 = center.x+d*0.3;
+    float x2 = center.x+d*0.7;
+    float y1 = center.y-d*0.7;
+    float y2 = center.y+d*0.7;
+    if(x1<=0) x1 = 1;
+    if(x2>cols) x2 = cols-1;
+    if(y1<=0) y1 = 1;
+    if(y2>=rows) y2 = rows-1;
+    roi = Rect(Point(x1,y1),Point(x2,y2));
+    return roi;
+}
 /**
  * @brief find_armour::find_armour  构造函数 完成一些从yaml读取数据的操作
  * @param f  写入yaml文件的类
@@ -323,6 +356,7 @@ void find_armour::get_Light()
     size_t size = fir_armor.size();
     vector<RotatedRect> Groups;
     int cellmaxsize;
+    if(fir_armor.size()<1) return;
     Groups.push_back(fir_armor[0]);
     cellmaxsize = fir_armor[0].size.height * fir_armor[0].size.width;
     if(cellmaxsize > 2500) cellmaxsize = 0;
@@ -546,3 +580,185 @@ void find_armour::search_armour(Mat img,Mat dst)
 }
 
 
+Mat find_armour::camshift_findarmor(Mat frame,Mat dst)
+{
+    Clear();
+    clear_data();
+    Mat image;
+    frame.copyTo(image);
+
+    if(isfindflag == 0)
+    {
+        image_preprocess(2,image,dst);  //图片预处理
+
+        search_armour(image,dst);
+        if(armour_center.size()==0)
+        {
+            isfind = 0;
+            find_armor_flag = 0;
+        }
+        else if(armour_center.size()==1)
+        {
+            last_center = armour_center[0];
+            last_d = diameters[0];
+            circle(image,last_center,last_d/2,Scalar(0,255,0));
+            Rotate_Point = Rotate_Points[0];
+            isfind = 1;
+            find_armor_flag = 1;
+        }
+        else
+        {
+            int n = 0;
+            vector<Point2f> temp_center = armour_center;
+            sort(temp_center.begin(),temp_center.end(),SortArmorCenterY);  //降序
+            sort(temp_center.begin(),temp_center.end(),SortArmorCenterX);
+            for (int i = 1;i<armour_center.size();i++)
+            {
+                if(temp_center[0]==armour_center[i])
+                {\
+                    n = i;
+                    break;
+                }
+            }
+            last_center = armour_center[n];
+            last_d = diameters[n];
+            Rotate_Point = Rotate_Points[n];
+            circle(image,last_center,last_d/2,Scalar(0,255,0));
+            isfind = 1;
+            find_armor_flag = 1;
+        }
+        if(find_armor_flag==1){
+            selection = roi2(last_center,last_d,image.cols,image.rows);
+            selection1 = roi1(last_center,last_d,image.cols,image.rows);
+//                Mat m = Mat::zeros(image.size(),image.type());
+//                m(selection).setTo(Scalar(255,255,255));
+//                Mat i;
+//                frame.copyTo(i,m);
+            rectangle(image, selection, Scalar(255,255,255));
+            rectangle(image, selection1, Scalar(255,255,255));
+            imshow("dst",image);
+            isfindflag = 1;
+            trackObject = -1;
+        }
+    }
+    else if( isfindflag== 1&&trackObject)
+    {
+        int _vmin = vmin, _vmax = vmax;
+
+        Mat gray;
+//        Mat k = getStructuringElement(MORPH_RECT,Size(3,3));
+        Mat k1 = getStructuringElement(MORPH_RECT,Size(7,7));
+        cvtColor(frame,gray,CV_BGR2GRAY);
+        threshold(gray,gray,50,255,THRESH_BINARY);
+        dst = gc.HSV_blue1(frame,dst.clone());
+        dst = dst&gray;
+        dilate(dst,dst,k1);
+        Mat img2;
+        imshow("ddd",dst);
+        image.copyTo(img2,dst);
+        imshow("imgg",img2);
+        cvtColor(img2, hsv, COLOR_BGR2HSV);
+
+        inRange(hsv, Scalar(80, smin, MIN(_vmin,_vmax)),
+                Scalar(120, 256, MAX(_vmin, _vmax)), mask);
+        inRange(hsv, Scalar(80, smin, MIN(_vmin,_vmax)),
+                Scalar(120, 256, MAX(_vmin, _vmax)), mask1);
+        int ch[] = {0, 0};
+        hue.create(hsv.size(), hsv.depth());
+        hue1.create(hsv.size(), hsv.depth());
+        mixChannels(&hsv, 1, &hue, 1, ch, 1);
+        mixChannels(&hsv, 1, &hue1, 1, ch, 1);
+        if( trackObject < 0 )
+        {
+            // Object has been selected by user, set up CAMShift search properties once
+            Mat roi(hue, selection), maskroi(mask, selection);
+            Mat roi1(hue1, selection1), maskroi1(mask1, selection1);
+            calcHist(&roi, 1, 0, maskroi, hist, 1, &hsize, &phranges);
+            calcHist(&roi1, 1, 0, maskroi1, hist1, 1, &hsize1, &phranges1);
+
+            normalize(hist, hist, 0, 255, NORM_MINMAX);
+            normalize(hist1, hist1, 0, 255, NORM_MINMAX);
+
+
+            trackWindow = selection;
+            trackWindow1 = selection1;
+            trackObject = 1; // Don't set up again, unless user selects new ROI
+            histimg = Scalar::all(0);
+            int binW = histimg.cols / hsize;
+            histimg1 = Scalar::all(0);
+            int binW1 = histimg1.cols / hsize1;
+
+            Mat buf(1, hsize, CV_8UC3);
+            for( int i = 0; i < hsize; i++ )
+                buf.at<Vec3b>(i) = Vec3b(saturate_cast<uchar>(i*180./hsize), 255, 255);
+            cvtColor(buf, buf, COLOR_HSV2BGR);
+
+            Mat buf1(1, hsize1, CV_8UC3);
+            for( int i = 0; i < hsize1; i++ )
+                buf1.at<Vec3b>(i) = Vec3b(saturate_cast<uchar>(i*180./hsize1), 255, 255);
+            cvtColor(buf1, buf1, COLOR_HSV2BGR);
+
+            for( int i = 0; i < hsize; i++ )
+            {
+                int val = saturate_cast<int>(hist.at<float>(i)*histimg.rows/255);
+                rectangle( histimg, Point(i*binW,histimg.rows),
+                           Point((i+1)*binW,histimg.rows - val),
+                           Scalar(buf.at<Vec3b>(i)), -1, 8 );
+            }
+            for( int i = 0; i < hsize1; i++ )
+            {
+                int val1 = saturate_cast<int>(hist.at<float>(i)*histimg1.rows/255);
+                rectangle( histimg1, Point(i*binW1,histimg1.rows),
+                           Point((i+1)*binW1,histimg1.rows - val1),
+                           Scalar(buf1.at<Vec3b>(i)), -1, 8 );
+            }
+        }
+        // Perform CAMShift
+        calcBackProject(&hue, 1, 0, hist, backproj, &phranges);
+        backproj &= mask;
+        RotatedRect trackBox = CamShift(backproj, trackWindow,
+                            TermCriteria( TermCriteria::EPS | TermCriteria::COUNT, 10, 1 ));
+        // Perform CAMShift
+        calcBackProject(&hue1, 1, 0, hist1, backproj1, &phranges1);
+        backproj1 &= mask;
+        RotatedRect trackBox1 = CamShift(backproj1, trackWindow1,
+                            TermCriteria( TermCriteria::EPS | TermCriteria::COUNT, 10, 1 ));
+        if( trackWindow.area() <= 1||trackWindow1.area() <= 1
+                || (trackBox.size.height*trackBox.size.width)<=1||(trackBox.size.height*trackBox.size.width)<=1)
+        {
+            isfindflag=0;
+//                    int cols = backproj.cols, rows = backproj.rows, r = (MIN(cols, rows) + 5)/6;
+//                    trackWindow = Rect(trackWindow.x - r, trackWindow.y - r,
+//                                       trackWindow.x + r, trackWindow.y + r) &
+//                                  Rect(0, 0, cols, rows);
+        }
+//        if(trackWindow.area()>trackWindow1.area())
+        if( abs(trackBox.center.x -trackBox1.center.x)<1||abs(trackBox.center.y -trackBox1.center.y)<1/*||trackWindow.area()*/ )
+        {
+            isfindflag=0;
+//                    int cols = backproj.cols, rows = backproj.rows, r = (MIN(cols, rows) + 5)/6;
+//                    trackWindow = Rect(trackWindow.x - r, trackWindow.y - r,
+//                                       trackWindow.x + r, trackWindow.y + r) &
+//                                  Rect(0, 0, cols, rows);
+        }
+        cout<<"+++++++++++++"<<endl;
+//                cout<<trackBox.size.width<<"\t"<<trackBox.size.height<<endl;
+//                cout<<trackBox1.size.width<<"\t"<<trackBox1.size.height<<endl;
+        cout<<trackBox.center<<"\t"<<trackBox1.center<<endl;
+        rectangle(image, trackWindow, Scalar(255,255,255));
+
+        ellipse( image, trackBox, Scalar(0,0,255), 1, LINE_AA );
+        rectangle(image, trackWindow1, Scalar(255,255,255));
+
+        ellipse( image, trackBox1, Scalar(0,0,255), 1, LINE_AA );
+    }
+
+//        if( selectObject && selection.width > 0 && selection.height > 0 )
+//        {
+//            Mat roi(image, selection);
+//            bitwise_not(roi, roi);
+//        }
+
+    imshow( "CamShift Demo", image );
+    return image;
+}
