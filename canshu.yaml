@@ -1,0 +1,54 @@
+%YAML:1.0
+---
+#v4l2 canshu .
+exposure: 10
+saturation: 64
+contrast: 32
+gain: 20
+brightness: 0
+white: 5000
+
+#name of device.
+string_dev:
+   - "/dev/video0"
+
+filename: "/home/mjs/Videos/blue.avi"
+
+#video file path.
+string_read:
+   - "/home/mjs/Videos/blue.avi"
+   - "/home/mjs/Videos/red.avi"
+
+#select mode:1-start camera;2-use video file.
+select: 1
+#decide use which method to discern. 5-red;
+#4-blue2;2-blue1;1-blue1
+#最新3-blue4
+flag: 2
+
+#HSV_blue
+iLowH: 60
+iHighH: 130
+iLowS: 30
+iHighS: 255
+iLowV: 30
+iHighV: 255
+
+
+#ROI contour's canshu
+y_dist_wucha_ROI: 50
+height_d_wucha_ROI: 30
+
+
+#dst contour's canshu
+area_min: 50
+angle1: -30
+angle2: -50
+y_dist_wucha: 30
+max_rate: 3
+min_rate: 0.2
+height_d_wucha: 20
+
+
+
+
