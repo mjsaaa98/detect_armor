@@ -5,6 +5,8 @@ ImgFactory::ImgFactory(){
     filename = "/home/mjs/Videos/blue.avi";
     stop_pro = false;
     handle_flag = false;
+    read_num = 0;
+    process_num = 0
 #ifdef CAMERA_DEBUG
     mode = 2;
 #else
@@ -44,13 +46,17 @@ void ImgFactory::Img_read(){
         t3 = getTickCount();
         int fps_read = (t3-t1)/getTickFrequency()*1000;
         cout<<"time_read:"<<fps_read<<"ms"<<endl;
-//        Lock.lock();
+
+        while(handle_flag==true);  //可以处理标志位还为真，说明图片还没被传进去处理，一直等待。
+        //加锁,在列表插入值，同时禁止读取
+        Lock.lock();
 //        std::lock_guard<std::mutex> guard(Lock);
         list_of_frame.push_back(frame);
         handle_flag = true;
-//        Lock.unlock();
+        Lock.unlock();
     }
 }
+
 
 /**
  * @brief ImgFactory::Img_handle  处理图像线程
@@ -71,15 +77,11 @@ void ImgFactory::Img_handle(){
     sp.initSerialPort();
 #endif
     VisionData data = {0,0,0,0,0};
-    VisionData receive_data = {0,0,0,0,0};
     RotatedRect RRect;
     find_armour f_armour(fs);
     float t=0;
-    float last_time = 0;
     int numofpic = 0;
     Mat camera_location;
-    float vx=0,vy=0;
-//    KFparam kp = {0,0,0};
     float firstfind_t = 0,nowfind_t = 0,firnotfind_t = 0,nownotfind_t = 0;
     int isfirstfind = 1;
     int isfirnotfind = 0;
@@ -91,17 +93,16 @@ void ImgFactory::Img_handle(){
 #endif
         data.isfind = f_armour.isfind;
         Mat src;
-//        cout<<"falg:"<<handle_flag<<endl;
 
-        if(handle_flag==false) continue;
+        while(handle_flag==false);
 
         Lock.lock();
         src = list_of_frame.back();
         list_of_frame.clear();
         handle_flag = false;
         Lock.unlock();
+        imshow("src",src);
         Mat dst = Mat::zeros(src.size(), CV_8UC1);
-        Mat img = Mat::zeros(src.size(), src.type());
         if(mode == 0)
         {
             data.isfind = 0;
@@ -109,14 +110,9 @@ void ImgFactory::Img_handle(){
             data.yaw_angle.f = 0;
             isfirstfind = 1;
             isfirnotfind = 0;
-#ifdef KALMAN_OPEN
-            history_yaw_offset.clear();
-            history_yaw_offset.push_back(0);
-            history_yaw_offset.push_back(0);
-            num = 0;
-#endif
         }
         else if (mode==3){
+            Mat img = Mat::zeros(src.size(), src.type());
             img = f_armour.camshift_findarmor(src,dst);
             imshow("img",img);
             continue;
@@ -227,7 +223,7 @@ void ImgFactory::Img_handle(){
 #ifdef OPEN_SERIAL
         sp.TransformData(data);
 #endif
-        int i = waitKey(10);
+        int i = waitKey(1);
         if( i=='q') break;
     }
 #ifdef OPEN_SERIAL
