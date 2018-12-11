@@ -36,6 +36,8 @@ int main()
     int fd1 = open("/dev/video0",O_RDWR);
     open_and_set_camera_para(fd1);
 
+    cout<<"摄像头设置成功！"<<endl;
+
     ImgFactory imgfactory;
     std::thread t1(&ImgFactory::Img_read,&imgfactory);
     std::thread t2(&ImgFactory::Img_handle,&imgfactory);

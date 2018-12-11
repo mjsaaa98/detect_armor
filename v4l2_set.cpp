@@ -40,7 +40,7 @@ void v4l2_set::set_exposure(int c)
     ctrl0.id = V4L2_CID_EXPOSURE_ABSOLUTE;
     ctrl0.value = c;
     ioctl(fd,VIDIOC_S_CTRL,&ctrl0);
-    cout<<ctrl0.value<<endl;
+    cout<<"曝光值:"<<ctrl0.value<<endl;
 }
 void v4l2_set::set_gain(int c)
 {
@@ -78,5 +78,5 @@ void v4l2_set::set_saturation(int c)
     ctrl0.id = V4L2_CID_SATURATION;
     ctrl0.value = c;
     ioctl(fd,VIDIOC_S_CTRL,&ctrl0);
-    //cout<<ctrl0.value<<endl;
+    cout<<"饱和度:"<<ctrl0.value<<endl;
 }

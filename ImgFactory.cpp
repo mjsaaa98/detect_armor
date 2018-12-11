@@ -6,7 +6,7 @@ ImgFactory::ImgFactory(){
     stop_pro = false;
     handle_flag = false;
     read_num = 0;
-    process_num = 0
+    process_num = 0;
 #ifdef CAMERA_DEBUG
     mode = 2;
 #else
@@ -37,6 +37,8 @@ void ImgFactory::Img_read(){
     {
         cout << "Failed!"<<endl;
     }
+    cout<<"摄像头设置打开成功！"<<endl;
+
     while (1)
     {
         double t1=0,t3 = 0;

@@ -248,7 +248,6 @@ Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
         else
         {
             int n = 0;
-            double d1 = diameters[0];
             vector<Point2f> temp_center = armour_center;
             sort(temp_center.begin(),temp_center.end(),SortArmorCenterY);  //降序
             sort(temp_center.begin(),temp_center.end(),SortArmorCenterX);
@@ -345,6 +344,7 @@ Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
 #endif
     }
     imshow("find",img);
+    imshow("dst",dst);
     return dst;
 }
 
