@@ -64,6 +64,27 @@ void ImgFactory::Img_read(){
  * @brief ImgFactory::Img_handle  处理图像线程
  */
 void ImgFactory::Img_handle(){
+#ifdef VIDEO
+    VideoCapture camera0;
+    camera0.open(filename);
+#else
+    VideoCapture camera0(0);
+#ifdef F640
+    //设置摄像头分辨率为1280x720
+    camera0.set(CV_CAP_PROP_FRAME_WIDTH,640);
+    camera0.set(CV_CAP_PROP_FRAME_HEIGHT,480);
+#else
+    camera0.set(CV_CAP_PROP_FRAME_WIDTH,1280);
+    camera0.set(CV_CAP_PROP_FRAME_HEIGHT,720);
+#endif
+#endif
+    if (!camera0.isOpened())
+    {
+        cout << "Failed!"<<endl;
+    }
+    cout<<"摄像头设置打开成功！"<<endl;
+
+
     double camera_canshu[9] = {527.3444,0,337.5232,0,531.2206,254.4946,0,0,1};
     double dist_coeff[5] = {-0.4259,0.2928,-0.0106,-0.0031,0};
     Mat camera_matrix(3,3,CV_64FC1,camera_canshu);
@@ -90,6 +111,10 @@ void ImgFactory::Img_handle(){
     int isreceiveflag = 0;   //是否接收到数据
     while(1)
     {
+
+        camera0 >> frame;
+        if (frame.empty()) break;
+
 #ifdef OPEN_SERIAL
         sp.get_Mode(mode,receive_data,isreceiveflag);
 #endif
