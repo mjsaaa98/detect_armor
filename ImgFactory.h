@@ -7,7 +7,7 @@
 
 #define BUFF_SIZE 1
 
-//#define VIDEO
+#define VIDEO
 #define CAMERA_DEBUG
 //#define F640
 class ImgFactory
@@ -16,12 +16,12 @@ class ImgFactory
     std::mutex Lock;
     long long read_num;
     long long process_num;
-
 private:
     string filename;
     bool stop_pro;
     int mode;
     Mat frame;
+    Mat src;
     list<Mat> list_of_frame;
 public:
     ImgFactory();
