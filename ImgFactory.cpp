@@ -235,3 +235,4 @@ void ImgFactory::Img_handle(){
     sp.Close();
 #endif
 }
+

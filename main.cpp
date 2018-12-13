@@ -39,6 +39,7 @@ int main()
     cout<<"摄像头设置成功！"<<endl;
 
     ImgFactory imgfactory;
+
     std::thread t1(&ImgFactory::Img_read,&imgfactory);
     std::thread t2(&ImgFactory::Img_handle,&imgfactory);
 
