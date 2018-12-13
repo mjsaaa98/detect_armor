@@ -5,8 +5,6 @@ ImgFactory::ImgFactory(){
     filename = "/home/mjs/Videos/blue.avi";
     stop_pro = false;
     handle_flag = false;
-    read_num = 0;
-    process_num = 0;
 #ifdef CAMERA_DEBUG
     mode = 2;
 #else
@@ -37,7 +35,7 @@ void ImgFactory::Img_read(){
     {
         cout << "Failed!"<<endl;
     }
-    cout<<"摄像头设置打开成功！"<<endl;
+    else cout<<"摄像头设置打开成功！"<<endl;
 
     while (1)
     {
@@ -52,8 +50,7 @@ void ImgFactory::Img_read(){
         while(handle_flag==true);  //可以处理标志位还为真，说明图片还没被传进去处理，一直等待。
         //加锁,在列表插入值，同时禁止读取
         Lock.lock();
-//        std::lock_guard<std::mutex> guard(Lock);
-        list_of_frame.push_back(frame);
+        list_of_frame.push_back(frame.clone());
         handle_flag = true;
         Lock.unlock();
     }
@@ -64,10 +61,10 @@ void ImgFactory::Img_read(){
  * @brief ImgFactory::Img_handle  处理图像线程
  */
 void ImgFactory::Img_handle(){
-    double camera_canshu[9] = {527.3444,0,337.5232,0,531.2206,254.4946,0,0,1};
-    double dist_coeff[5] = {-0.4259,0.2928,-0.0106,-0.0031,0};
-    Mat camera_matrix(3,3,CV_64FC1,camera_canshu);
-    Mat dist_matrix(1,5,CV_64FC1,dist_coeff);
+    Mat camera_matrix;
+    Mat dist_matrix;
+    fs["camera_matrix"]>>camera_matrix;
+    fs["dist_matrix"]>>dist_matrix;
     AngleSolve ans(camera_matrix,dist_matrix,13.5,12.5,0,20,1000,1);
     double rot_c[] = {1,0,0,0,1,0,0,0,1};
     double tran_c[] = {0,0,0};
@@ -90,6 +87,8 @@ void ImgFactory::Img_handle(){
     int isreceiveflag = 0;   //是否接收到数据
     while(1)
     {
+        double t1=0,t3 = 0;
+        t1 = getTickCount();
 #ifdef OPEN_SERIAL
         sp.get_Mode(mode,receive_data,isreceiveflag);
 #endif
@@ -119,7 +118,7 @@ void ImgFactory::Img_handle(){
             imshow("img",img);
             continue;
         }
-        else dst = f_armour.find_blue4(src,dst,RRect,mode);
+        else dst = f_armour.get_armor(src,dst,RRect,mode);
 
         double xAngle=0,yAngle=0,dis=0;
         if( data.isfind == 1)
@@ -225,6 +224,10 @@ void ImgFactory::Img_handle(){
 #ifdef OPEN_SERIAL
         sp.TransformData(data);
 #endif
+
+        t3 = getTickCount();
+        int fps_read = (t3-t1)/getTickFrequency()*1000;
+        cout<<"time_pro:"<<fps_read<<"ms"<<endl;
         int i = waitKey(1);
         if( i=='q') break;
     }

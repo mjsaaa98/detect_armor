@@ -52,19 +52,15 @@ class find_armour
 {
 public:
     find_armour(FileStorage);
-    Mat find_red(Mat Img,Mat dst);
-    Mat find_red1(Mat img,Mat dst);
-    Mat find_red2(Mat,Mat);
-    Mat find_red3(Mat,Mat);
     Mat roi(Mat,Point,float);
     float Point_Angle(const Point2f &p1,const Point2f &p2);
     void image_preprocess(int mode,Mat src,Mat &);
     void search_armour(Mat img,Mat dst);
     void get_Light();
     void src_get_armor();
-    void Get_Rotated_param(float x1,float x2,float y1,float y2,float &Rotated_angle);
-    Mat find_blue4(Mat,Mat dst,RotatedRect&,int);
-    Mat find_red4(Mat,Mat,Point&,int&,int&);
+
+    Mat get_armor(Mat,Mat dst,RotatedRect&,int);
+
     Mat camshift_findarmor(Mat,Mat);
 public:
     //与串口通信有关的数据
@@ -77,9 +73,12 @@ private:
     get_colors gc;
     vector<float> diameters;
     vector<Point2f> armour_center;
+    vector<float> big_diameters;
+    vector<Point2f> big_armour_center;
     vector<vector<RotatedRect> > Armorlists;
     vector<Point2f> Rotate_Point;
     vector<vector<Point2f> > Rotate_Points;
+    vector<vector<Point2f> > big_Rotate_Points;
     vector<RotatedRect> fir_armor,result_armor;
     vector<Vec4f> contours_para;
     vector<int> CellMaxs;
@@ -95,7 +94,6 @@ private:
     float last_d;
     float last_angle;
     Size2f last_size;
-
 
     /** camshift para
       */

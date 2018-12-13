@@ -7,6 +7,8 @@
 
 #define BUFF_SIZE 1
 
+
+//#define OPEN_SERIAL
 //#define VIDEO
 #define CAMERA_DEBUG
 //#define F640
@@ -14,8 +16,6 @@ class ImgFactory
 {
     bool handle_flag;
     std::mutex Lock;
-    long long read_num;
-    long long process_num;
 
 private:
     string filename;

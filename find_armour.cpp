@@ -51,7 +51,6 @@ find_armour::find_armour(FileStorage f)
     fs["max_rate"] >> max_rate;
     Clear();
     clear_data();
-
 }
 
 /**
@@ -61,6 +60,8 @@ void find_armour::Clear()
 {
     diameters.clear();
     armour_center.clear();
+    big_diameters.clear();
+    big_armour_center.clear();
     fir_armor.clear();
     result_armor.clear();
     Armorlists.clear();
@@ -68,6 +69,7 @@ void find_armour::Clear()
     armour_center.clear();
     Rotate_Point.clear();
     Rotate_Points.clear();
+    big_Rotate_Points.clear();
     contours_para.clear();
     CellMaxs.clear();
     isfind = 0;
@@ -88,40 +90,6 @@ void find_armour::clear_data()
     x2 = 0;
     y1 = 0;
     y2 = 0;
-}
-
-/**
- * @brief find::Get_Rotated_param  得到构造Rotated的参数   not used
- * @param x1
- * @param x2
- * @param y1
- * @param y2
- * @param Rotated_angle
- */
-void find_armour::Get_Rotated_param(float x1,float x2,float y1,float y2,float &Rotated_angle)
-{
-    if(x1<x2)
-    {
-        if(y1 == y2)
-        {
-            Rotated_angle = 0;
-        }
-        else
-        {
-            Rotated_angle = atan((y2-y1)/(x2-x1))*180/3.14159;
-        }
-    }
-    else
-    {
-        if(y1 == y2)
-        {
-            Rotated_angle = 0;
-        }
-        else
-        {
-            Rotated_angle = atan((y1-y2)/(x1-x2))*180/3.14159;;
-        }
-    }
 }
 
 
@@ -213,7 +181,7 @@ void find_armour::image_preprocess(int mode,Mat src,Mat &dst)
  * @param mode  input 输入指令
  * @return Mat
  */
-Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
+Mat find_armour::get_armor(Mat img,Mat dst,RotatedRect&RRect,int mode)
 {
     Clear();
     //判断是否切换命令了
@@ -230,10 +198,42 @@ Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
     {
         clear_data();
         search_armour(img,dst);
-        if(armour_center.size()==0)
+        if(big_armour_center.size()!=0)
+        {
+            if(big_armour_center.size() == 1)
+            {
+                last_center = big_armour_center[0];
+                last_d = big_diameters[0];
+                Rotate_Point = big_Rotate_Points[0];
+            }
+            else
+            {
+                int n = 0;
+                vector<Point2f> temp_center = big_armour_center;
+                sort(temp_center.begin(),temp_center.end(),SortArmorCenterY);  //降序
+                if(temp_center[0].x>temp_center[1].x&&(temp_center[0].x-temp_center[1].x)<0.5*(temp_center[0].y-temp_center[1].y))
+                {
+                    temp_center[0] = temp_center[1];
+                }
+                for (int i = 1;i<big_armour_center.size();i++)
+                {
+                    if(temp_center[0]==big_armour_center[i])
+                    {
+                        n = i;
+                        break;
+                    }
+                }
+                last_center = big_armour_center[n];
+                last_d = big_diameters[n];
+                Rotate_Point = big_Rotate_Points[n];
+            }
+            circle(img,last_center,last_d/2,Scalar(0,255,0));
+            isROIflag = 1;
+            isfind = 1;
+        }
+        else if(armour_center.size()==0)
         {
             isROIflag = 0;
-//            dstROI = roi(dst,Point(img.cols/2,img.rows/2),100,img.cols,img.rows);
             isfind = 0;
         }
         else if(armour_center.size()==1)
@@ -250,24 +250,18 @@ Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
             int n = 0;
             vector<Point2f> temp_center = armour_center;
             sort(temp_center.begin(),temp_center.end(),SortArmorCenterY);  //降序
-            sort(temp_center.begin(),temp_center.end(),SortArmorCenterX);
+            if(temp_center[0].x>temp_center[1].x&&(temp_center[0].x-temp_center[1].x)<0.5*(temp_center[0].y-temp_center[1].y))
+            {
+                temp_center[0] = temp_center[1];
+            }
             for (int i = 1;i<armour_center.size();i++)
             {
                 if(temp_center[0]==armour_center[i])
-                {\
+                {
                     n = i;
                     break;
                 }
             }
-//            for (int i = 1;i<armour_center.size();i++)
-//            {
-//                double d2 = diameters[i];
-//                if(d1>d2)
-//                {
-//                    d1 = d2;
-//                    n = i;
-//                }
-//            }
             last_center = armour_center[n];
             last_d = diameters[n];
             Rotate_Point = Rotate_Points[n];
@@ -282,7 +276,7 @@ Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
         dstROI = roi(dst,last_center,last_d);
         search_armour(img,dstROI);
         //当前截图区域没找到，以半径扩展
-        while(armour_center.size()==0)
+        while(armour_center.size()==0&&big_armour_center.size()==0)
         {
             Clear();
             last_d = last_d*1.3;
@@ -290,8 +284,42 @@ Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
             search_armour(img,dstROI);
             if(x1==1||x2==img.cols-1||y1==1||y2==img.rows-1) break;
         }
-        //识别到的装甲板个数
-        if(armour_center.size()==0)
+
+
+        if(big_armour_center.size()!=0)
+        {
+            if(big_armour_center.size() == 1)
+            {
+                last_center = big_armour_center[0];
+                last_d = big_diameters[0];
+                Rotate_Point = big_Rotate_Points[0];
+            }
+            else
+            {
+                int n = 0;
+                vector<Point2f> temp_center = big_armour_center;
+                sort(temp_center.begin(),temp_center.end(),SortArmorCenterY);  //降序
+                if(temp_center[0].x>temp_center[1].x&&(temp_center[0].x-temp_center[1].x)<0.5*(temp_center[0].y-temp_center[1].y))
+                {
+                    temp_center[0] = temp_center[1];
+                }
+                for (int i = 1;i<big_armour_center.size();i++)
+                {
+                    if(temp_center[0]==big_armour_center[i])
+                    {
+                        n = i;
+                        break;
+                    }
+                }
+                last_center = big_armour_center[n];
+                last_d = big_diameters[n];
+                Rotate_Point = big_Rotate_Points[n];
+            }
+            circle(img,last_center,last_d/2,Scalar(0,255,0));
+            isROIflag = 1;
+            isfind = 1;
+        }
+        else if(armour_center.size()==0)
         {
             isROIflag = 0;
             isfind = 0;
@@ -310,11 +338,14 @@ Mat find_armour::find_blue4(Mat img,Mat dst,RotatedRect&RRect,int mode)
             int n = 0;
             vector<Point2f> temp_center = armour_center;
             sort(temp_center.begin(),temp_center.end(),SortArmorCenterY);  //降序
-            sort(temp_center.begin(),temp_center.end(),SortArmorCenterX);
+            if(temp_center[0].x>temp_center[1].x&&(temp_center[0].x-temp_center[1].x)<0.5*(temp_center[0].y-temp_center[1].y))
+            {
+                temp_center[0] = temp_center[1];
+            }
             for (int i = 1;i<armour_center.size();i++)
             {
                 if(temp_center[0]==armour_center[i])
-                {\
+                {
                     n = i;
                     break;
                 }
@@ -519,14 +550,29 @@ void find_armour::src_get_armor()
                 }
                 if(has_armor_flag == 1 )
                 {
-                    diameters.push_back(d);
-                    Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
-                    armour_center.push_back(center);
-                    VecPoint.push_back(pt[0]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    VecPoint.push_back(pt[1]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    VecPoint.push_back(pt[2]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    VecPoint.push_back(pt[3]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    Rotate_Points.push_back(VecPoint);
+                    if(max(d/height1,d/height2)>2)
+                    {
+                        big_diameters.push_back(d);
+                        Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+                        big_armour_center.push_back(center);
+                        VecPoint.push_back(pt[0]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                        VecPoint.push_back(pt[1]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                        VecPoint.push_back(pt[2]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                        VecPoint.push_back(pt[3]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                        big_Rotate_Points.push_back(VecPoint);
+                    }
+                    else
+                    {
+                        diameters.push_back(d);
+                        Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+                        armour_center.push_back(center);
+                        VecPoint.push_back(pt[0]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                        VecPoint.push_back(pt[1]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                        VecPoint.push_back(pt[2]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                        VecPoint.push_back(pt[3]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                        Rotate_Points.push_back(VecPoint);
+                    }
+
                 }
             }
         }
