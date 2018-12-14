@@ -484,7 +484,6 @@ void find_armour::src_get_armor()
             pt[0] = _pt[2];
             pt[1] = _pt[3];
         }
-        int has_armor_flag = 0;  //是否有装甲板标志位
 
         height2 = contours_para[1][0];
         x2 = contours_para[1][1];
@@ -531,48 +530,17 @@ void find_armour::src_get_armor()
             double d=sqrt(pow(contours_para[0][1]-contours_para[1][1],2)
                     +pow(contours_para[0][2]-contours_para[1][2],2));
             float dh_rate = max(d/height1,d/height2);
-
-            if(isROIflag==0)
+            if(y_dist<0.4*(height1+height2)&&(angle_d<20||angle_d>50)
+                   &&fabs(K)<0.5&&angle_of_Rotated<20&&area_rate<3.0&&x2h_rate>=0.8&&x2h_rate<=5&&dh_rate<4.5&&height_d<0.5*max_h)
             {
-                if(y_dist<0.4*(height1+height2)&&(angle_d<20||angle_d>50)
-                       &&fabs(K)<0.5&&angle_of_Rotated<20&&area_rate<3.0&&x2h_rate>=0.8&&x2h_rate<=4.5&&dh_rate<4.5&&height_d<0.5*max_h)
-                {
-                    has_armor_flag = 1;
-                }
-            }
-            else
-            {
-                if(y_dist<0.5*(height1+height2)
-                       &&fabs(K)<0.5&&angle_of_Rotated<20&&area_rate<3.5&&x2h_rate>=0.8&&x2h_rate<=5&&dh_rate<4.5&&height_d<0.5*max_h)
-                {
-                    has_armor_flag = 1;
-                }
-            }
-            if(has_armor_flag == 1 )
-            {
-
-                if(dh_rate>3)
-                {
-                    big_diameters.push_back(d);
-                    Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
-                    big_armour_center.push_back(center);
-                    VecPoint.push_back(pt[0]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    VecPoint.push_back(pt[1]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    VecPoint.push_back(pt[2]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    VecPoint.push_back(pt[3]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    big_Rotate_Points.push_back(VecPoint);
-                }
-                else
-                {
-                    diameters.push_back(d);
-                    Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
-                    armour_center.push_back(center);
-                    VecPoint.push_back(pt[0]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    VecPoint.push_back(pt[1]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    VecPoint.push_back(pt[2]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    VecPoint.push_back(pt[3]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                    Rotate_Points.push_back(VecPoint);
-                }
+                diameters.push_back(d);
+                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+                armour_center.push_back(center);
+                VecPoint.push_back(pt[0]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                VecPoint.push_back(pt[1]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                VecPoint.push_back(pt[2]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                VecPoint.push_back(pt[3]/*+Point2f(find_armour::x1,find_armour::y1)*/);
+                Rotate_Points.push_back(VecPoint);
             }
         }
     }
@@ -606,8 +574,6 @@ void find_armour::src_get_armor()
             }
             for(int j = i+1;j<size;j++)
             {
-                int has_armor_flag = 0;  //是否有装甲板标志位
-
                 height2 = contours_para[j][0];
                 x2 = contours_para[j][1];
                 y2 = contours_para[j][2];
@@ -659,8 +625,29 @@ void find_armour::src_get_armor()
                         if(y_dist<0.25*(height1+height2)&&(angle_d<20||angle_d>50)
                                &&fabs(K)<0.4&&angle_of_Rotated<15&&area_rate<3.0&&x2h_rate>=0.8&&x2h_rate<=4&&dh_rate<4.5&&height_d<0.45*max_h)
                         {
-                            has_armor_flag = 1;
-//                            score = y_dist*0.1 + fabs(K)*0.1 + angle_of_Rotated*0.1 +
+
+                            if(dh_rate>3.5)
+                            {
+                                big_diameters.push_back(d);
+                                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+                                big_armour_center.push_back(center);
+                                VecPoint.push_back(pt[0]);
+                                VecPoint.push_back(pt[1]);
+                                VecPoint.push_back(pt[2]);
+                                VecPoint.push_back(pt[3]);
+                                big_Rotate_Points.push_back(VecPoint);
+                            }
+                            else
+                            {
+                                diameters.push_back(d);
+                                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+                                armour_center.push_back(center);
+                                VecPoint.push_back(pt[0]);
+                                VecPoint.push_back(pt[1]);
+                                VecPoint.push_back(pt[2]);
+                                VecPoint.push_back(pt[3]);
+                                Rotate_Points.push_back(VecPoint);
+                            }
                         }
                     }
                     else
@@ -668,35 +655,30 @@ void find_armour::src_get_armor()
                         if(y_dist<0.3*(height1+height2)
                                &&fabs(K)<0.5&&angle_of_Rotated<20&&area_rate<3.5&&x2h_rate>=0.8&&x2h_rate<=4.5&&dh_rate<4.5&&height_d<0.5*max_h)
                         {
-                            has_armor_flag = 1;
-                        }
-                    }
-                    if(has_armor_flag == 1 )
-                    {
 
-                        if(dh_rate>3)
-                        {
-                            big_diameters.push_back(d);
-                            Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
-                            big_armour_center.push_back(center);
-                            VecPoint.push_back(pt[0]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                            VecPoint.push_back(pt[1]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                            VecPoint.push_back(pt[2]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                            VecPoint.push_back(pt[3]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                            big_Rotate_Points.push_back(VecPoint);
+                            if(dh_rate>3.5)
+                            {
+                                big_diameters.push_back(d);
+                                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+                                big_armour_center.push_back(center);
+                                VecPoint.push_back(pt[0]);
+                                VecPoint.push_back(pt[1]);
+                                VecPoint.push_back(pt[2]);
+                                VecPoint.push_back(pt[3]);
+                                big_Rotate_Points.push_back(VecPoint);
+                            }
+                            else
+                            {
+                                diameters.push_back(d);
+                                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+                                armour_center.push_back(center);
+                                VecPoint.push_back(pt[0]);
+                                VecPoint.push_back(pt[1]);
+                                VecPoint.push_back(pt[2]);
+                                VecPoint.push_back(pt[3]);
+                                Rotate_Points.push_back(VecPoint);
+                            }
                         }
-                        else
-                        {
-                            diameters.push_back(d);
-                            Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
-                            armour_center.push_back(center);
-                            VecPoint.push_back(pt[0]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                            VecPoint.push_back(pt[1]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                            VecPoint.push_back(pt[2]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                            VecPoint.push_back(pt[3]/*+Point2f(find_armour::x1,find_armour::y1)*/);
-                            Rotate_Points.push_back(VecPoint);
-                        }
-
                     }
                 }
             }
