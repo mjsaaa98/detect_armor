@@ -45,6 +45,11 @@ static inline bool SortArmorCenterY(Point2f p1,Point2f p2)
     return p1.y>p2.y;
 }
 
+static inline bool Sort_Areas(float a1,float a2)
+{
+    return a1<a2;
+}
+
 /**
  * @brief The find_armour class  找装甲板的类
  */

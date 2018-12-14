@@ -30,4 +30,3 @@ public:
 };
 
 #endif // IMGFACTORY_H
-

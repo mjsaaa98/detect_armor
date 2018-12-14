@@ -6,7 +6,7 @@ ImgFactory::ImgFactory(){
     stop_pro = false;
     handle_flag = false;
 #ifdef CAMERA_DEBUG
-    mode = 2;
+    mode = 3;
 #else
     mode = 0;
 #endif
@@ -39,13 +39,14 @@ void ImgFactory::Img_read(){
 
     while (1)
     {
-        double t1=0,t3 = 0;
-        t1 = getTickCount();
+//        double t1=0,t3 = 0;
+//        t1 = getTickCount();
         camera0 >> frame;
         if (frame.empty()) break;
-        t3 = getTickCount();
-        int fps_read = (t3-t1)/getTickFrequency()*1000;
-        cout<<"time_read:"<<fps_read<<"ms"<<endl;
+        imshow("frame",frame);
+//        t3 = getTickCount();
+//        int fps_read = (t3-t1)/getTickFrequency()*1000;
+//        cout<<"time_read:"<<fps_read<<"ms"<<endl;
 
         while(handle_flag==true);  //可以处理标志位还为真，说明图片还没被传进去处理，一直等待。
         //加锁,在列表插入值，同时禁止读取
@@ -87,8 +88,8 @@ void ImgFactory::Img_handle(){
     int isreceiveflag = 0;   //是否接收到数据
     while(1)
     {
-        double t1=0,t3 = 0;
-        t1 = getTickCount();
+//        double t1=0,t3 = 0;
+//        t1 = getTickCount();
 #ifdef OPEN_SERIAL
         sp.get_Mode(mode,receive_data,isreceiveflag);
 #endif
@@ -102,7 +103,6 @@ void ImgFactory::Img_handle(){
         list_of_frame.clear();
         handle_flag = false;
         Lock.unlock();
-        imshow("src",src);
         Mat dst = Mat::zeros(src.size(), CV_8UC1);
         if(mode == 0)
         {
@@ -116,6 +116,8 @@ void ImgFactory::Img_handle(){
             Mat img = Mat::zeros(src.size(), src.type());
             img = f_armour.camshift_findarmor(src,dst);
             imshow("img",img);
+            int i = waitKey(1);
+            if( i=='q') break;
             continue;
         }
         else dst = f_armour.get_armor(src,dst,RRect,mode);
@@ -225,9 +227,9 @@ void ImgFactory::Img_handle(){
         sp.TransformData(data);
 #endif
 
-        t3 = getTickCount();
-        int fps_read = (t3-t1)/getTickFrequency()*1000;
-        cout<<"time_pro:"<<fps_read<<"ms"<<endl;
+//        t3 = getTickCount();
+//        int fps_read = (t3-t1)/getTickFrequency()*1000;
+//        cout<<"time_pro:"<<fps_read<<"ms"<<endl;
         int i = waitKey(1);
         if( i=='q') break;
     }
@@ -235,4 +237,3 @@ void ImgFactory::Img_handle(){
     sp.Close();
 #endif
 }
-
