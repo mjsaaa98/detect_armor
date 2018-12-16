@@ -135,9 +135,11 @@ void find_armour::image_preprocess(int mode,Mat src,Mat &dst)
     Mat k = getStructuringElement(MORPH_RECT,Size(3,3));
     Mat k1 = getStructuringElement(MORPH_RECT,Size(7,7));
     cvtColor(src,gray,CV_BGR2GRAY);
+    imshow("gray",gray);
     threshold(gray,gray,110,255,THRESH_BINARY);
     if(mode==2) dst = gc.HSV_blue1(src,dst.clone());
     else if(mode==1) dst = gc.HSV_red1(src,dst.clone());
+    imshow("hsv",dst);
     dst = dst&gray;
     dilate(dst,dst,k1);
     ////顶帽操作
@@ -374,7 +376,7 @@ Mat find_armour::get_armor(Mat img,Mat dst,RotatedRect&RRect,int mode)
         }
 #endif
     }
-    imshow("find",img);
+//    imshow("find",img);
 //    imshow("dst",dst);
     return dst;
 }
@@ -390,12 +392,12 @@ void find_armour::get_Light()
     if(fir_armor.size()<1) return;
     Groups.push_back(fir_armor[0]);
     cellmaxsize = fir_armor[0].size.height * fir_armor[0].size.width;
-    if(cellmaxsize > 4000) cellmaxsize = 0;
+    if(cellmaxsize > 3500) cellmaxsize = 0;
     int maxsize;
     for(int i=1;i<size;i++){
         if(fir_armor[i].center.x - fir_armor[i-1].center.x <10){
             maxsize = fir_armor[i].size.height * fir_armor[i].size.width;
-            if(maxsize > 2500) continue;
+            if(maxsize > 3500) continue;
             if(maxsize > cellmaxsize) cellmaxsize = maxsize;
             Groups.push_back(fir_armor[i]);
         }else{
@@ -460,6 +462,7 @@ void find_armour::src_get_armor()
     float y_dist,x_dist,min_h,height_d,K,x2h_rate,angle_diff,max_h;
     float angle_of_Rotated,height_of_Rotated;
     if(size==2){
+        cout<<"contours's 2"<<endl;
         height1 = contours_para[0][0];
         x1 = contours_para[0][1];
         y1 = contours_para[0][2];
@@ -620,13 +623,13 @@ void find_armour::src_get_armor()
                             +pow(contours_para[i][2]-contours_para[j][2],2));
                     float dh_rate = max(d/height1,d/height2);
 
-                    if(isROIflag==0)
-                    {
-                        if(y_dist<0.25*(height1+height2)&&(angle_d<20||angle_d>50)
-                               &&fabs(K)<0.4&&angle_of_Rotated<15&&area_rate<3.0&&x2h_rate>=0.8&&x2h_rate<=4&&dh_rate<4.5&&height_d<0.45*max_h)
+//                    if(isROIflag==0)
+//                    {
+                        if(y_dist<0.3*(height1+height2)&&(angle_d<20||angle_d>60)
+                               &&fabs(K)<0.4&&angle_of_Rotated<20&&area_rate<3.0&&x2h_rate>=0.8&&x2h_rate<=4&&dh_rate<4.5&&height_d<0.45*(height1+height2))
                         {
 
-                            if(dh_rate>3.5)
+                            if(x2h_rate>3.5)
                             {
                                 big_diameters.push_back(d);
                                 Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
@@ -649,37 +652,37 @@ void find_armour::src_get_armor()
                                 Rotate_Points.push_back(VecPoint);
                             }
                         }
-                    }
-                    else
-                    {
-                        if(y_dist<0.3*(height1+height2)
-                               &&fabs(K)<0.5&&angle_of_Rotated<20&&area_rate<3.5&&x2h_rate>=0.8&&x2h_rate<=4.5&&dh_rate<4.5&&height_d<0.5*max_h)
-                        {
+//                    }
+//                    else
+//                    {
+//                        if(y_dist<0.3*(height1+height2)
+//                               &&fabs(K)<0.5&&angle_of_Rotated<20&&area_rate<3.5&&x2h_rate>=0.8&&x2h_rate<=4.5&&dh_rate<4.5&&height_d<0.5*max_h)
+//                        {
 
-                            if(dh_rate>3.5)
-                            {
-                                big_diameters.push_back(d);
-                                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
-                                big_armour_center.push_back(center);
-                                VecPoint.push_back(pt[0]);
-                                VecPoint.push_back(pt[1]);
-                                VecPoint.push_back(pt[2]);
-                                VecPoint.push_back(pt[3]);
-                                big_Rotate_Points.push_back(VecPoint);
-                            }
-                            else
-                            {
-                                diameters.push_back(d);
-                                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
-                                armour_center.push_back(center);
-                                VecPoint.push_back(pt[0]);
-                                VecPoint.push_back(pt[1]);
-                                VecPoint.push_back(pt[2]);
-                                VecPoint.push_back(pt[3]);
-                                Rotate_Points.push_back(VecPoint);
-                            }
-                        }
-                    }
+//                            if(dh_rate>3.5)
+//                            {
+//                                big_diameters.push_back(d);
+//                                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+//                                big_armour_center.push_back(center);
+//                                VecPoint.push_back(pt[0]);
+//                                VecPoint.push_back(pt[1]);
+//                                VecPoint.push_back(pt[2]);
+//                                VecPoint.push_back(pt[3]);
+//                                big_Rotate_Points.push_back(VecPoint);
+//                            }
+//                            else
+//                            {
+//                                diameters.push_back(d);
+//                                Point center=Point2f((x1+x2)*0.5,(y1+y2)*0.5);
+//                                armour_center.push_back(center);
+//                                VecPoint.push_back(pt[0]);
+//                                VecPoint.push_back(pt[1]);
+//                                VecPoint.push_back(pt[2]);
+//                                VecPoint.push_back(pt[3]);
+//                                Rotate_Points.push_back(VecPoint);
+//                            }
+//                        }
+//                    }
                 }
             }
         }
@@ -732,12 +735,15 @@ void find_armour::search_armour(Mat img,Mat dst)
         list<float> fir_armor_areas;
         for(int i = 0;i<num;i++)
         {
-            cout<<"去掉小矩形"<<endl;
             fir_armor_areas.push_back(fir_armor[i].size.width*fir_armor[i].size.width);
         }
         fir_armor_areas.sort();
         fir_armor_areas.pop_front();
-        while(fir_armor_areas.front()>fir_armor_areas.back()*10) fir_armor_areas.pop_back();  //去掉小面积
+        while(fir_armor_areas.front()>fir_armor_areas.back()*10)
+        {
+            cout<<"去掉小矩形"<<endl;
+            fir_armor_areas.pop_back();  //去掉小面积
+        }
     }
     sort(fir_armor.begin(),fir_armor.end(),Sort_RotatedRect);
     get_Light();
